@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="src" path="PluginEnterprise">
+		<attributes>
+			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="C:/Users/james.CEX-PC/Documents/UpdatedWorkspace/PluginEnterprise/src"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="C:/Users/james.CEX-PC/Desktop/PluginEnterprise Server/minecraft_server.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/PluginEnterprise"/>
+	<classpathentry kind="lib" path="C:/Users/james.CEX-PC/Desktop/PluginEnterprise Server/plugins/NoCheatPlus.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
