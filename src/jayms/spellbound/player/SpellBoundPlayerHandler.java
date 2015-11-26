@@ -1,16 +1,17 @@
 package jayms.spellbound.player;
 
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
@@ -18,7 +19,8 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
 import jayms.plugin.db.Database;
-import jayms.plugin.inventory.PlayerInventoryManipulator;
+import jayms.plugin.packet.EntityMethods;
+import jayms.plugin.packet.ExperienceMethods;
 import jayms.plugin.packet.TitleMethods;
 import jayms.spellbound.SpellBoundPlugin;
 import jayms.spellbound.items.wands.Wand;
@@ -127,9 +129,7 @@ public class SpellBoundPlayerHandler implements Listener {
 
 	private Map<UUID, SpellBoundPlayer> cache = new HashMap<>();
 	
-	private Map<SpellBoundPlayer, PlayerInventoryManipulator> battleModeToggle = new HashMap<>(); 
-	
-	private Map<SpellBoundPlayer, ItemStack> dropCopy = new HashMap<>();
+	private Map<SpellBoundPlayer, ItemStack[]> battleModeToggle = new HashMap<>(); 
 	
 	public SpellBoundPlayerHandler(SpellBoundPlugin sbPlugin) {
 		this.sbPlugin = sbPlugin;
@@ -236,21 +236,24 @@ public class SpellBoundPlayerHandler implements Listener {
 				throw new RuntimeException("Wand has become null! Something has gone very wrong!");
 			}
 			sbp.setBattleMode(true);
-			PlayerInventoryManipulator pim = new PlayerInventoryManipulator(sbp.getBukkitPlayer().getInventory());
-			pim.storeContentsAndClear();
-			Inventory inv = pim.getInventory();
+			PlayerInventory inv = sbp.getBukkitPlayer().getInventory();
+			battleModeToggle.put(sbp, inv.getContents());
+			inv.clear();
 			inv.setItem(0, wand.getItemStack());
-			battleModeToggle.put(sbp, pim);
+			inv.setHeldItemSlot(0);
+			sbp.showMana();
 		}else {
 			sbp.setBattleMode(false);
 			sbp.setSlotInside(-1);
-			PlayerInventoryManipulator pim = battleModeToggle.remove(sbp);
-			pim.restoreContents();
+			ItemStack[] bmtItems = battleModeToggle.remove(sbp);
+			Inventory inv = sbp.getBukkitPlayer().getInventory();
+			inv.setContents(bmtItems);
+			sbp.hideMana();
 		}
 		return true;
 	}
 	
-	private void sendWelcomeTitles(SpellBoundPlayer sbp) {
+	private void handleWelcome(SpellBoundPlayer sbp) {
 		TitleMethods.sendTitle("&7Welcome to &4S&cp&4e&cl&4l&cb&4o&cu&4n&cd ", 2, 5, 2, sbp.getBukkitPlayer());
 		TitleMethods.sendSubTitle("&7Powered by: &4PluginEnterprise", 2, 5, 2, sbp.getBukkitPlayer());
 	}
@@ -258,7 +261,8 @@ public class SpellBoundPlayerHandler implements Listener {
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onPlayerJoin(PlayerJoinEvent e) {
 		SpellBoundPlayer sbp = getSpellBoundPlayer(e.getPlayer());
-		sendWelcomeTitles(sbp);
+		handleWelcome(sbp);
+		
 	}
 
 	@EventHandler(priority = EventPriority.NORMAL)
@@ -271,50 +275,12 @@ public class SpellBoundPlayerHandler implements Listener {
 		cache.remove(sbp.getBukkitPlayer().getUniqueId());
 	}
 	
-	@EventHandler(priority = EventPriority.HIGH)
-	public void onSlotChange(PlayerItemHeldEvent e) {
+	public Set<SpellBoundPlayer> getCachedPlayers() {
 		
-		SpellBoundPlayer sbp = getSpellBoundPlayer(e.getPlayer());
+		Set<SpellBoundPlayer> result = new HashSet<>();
 		
-		int slot = e.getNewSlot();
+		result.addAll(cache.values());
 		
-		if (sbp.isBattleMode()) {
-			PlayerInventoryManipulator pim = battleModeToggle.get(sbp);
-			Inventory inv = pim.getInventory();
-			inv.clear(sbp.indexOfWand(sbp.getSelectedWand()));
-			inv.setItem(slot, sbp.getSelectedWand().getItemStack());
-		}
+		return result;
 	}
-	
-	@EventHandler(priority = EventPriority.HIGH)
-	public void onItemDrop(PlayerDropItemEvent e) {
-		
-		if (e.isCancelled()) {
-			return;
-		}
-		
-		SpellBoundPlayer sbp = getSpellBoundPlayer(e.getPlayer());
-		
-		if (sbp.isBattleMode()) {
-			if (!sbp.assureSelectedWand()) {
-				return;
-			}
-			e.setCancelled(true);
-			Wand w = sbp.getSelectedWand();
-			
-			int insideSlot = sbp.getSlotInside();
-			
-			if (insideSlot == -1) {
-				ItemStack iih = sbp.getBukkitPlayer().getItemInHand();
-				if (!Wand.isWand(iih)) {
-					throw new RuntimeException("Somehow they're in battlemode without a wand in hand!");
-				}
-				dropCopy.put(sbp, iih);
-				toggleBattleMode(sbp);
-			}else {
-				sbp.setSlotInside(-1);
-			}
-		}
-	}
-
 }

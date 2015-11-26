@@ -16,14 +16,17 @@ import org.bukkit.inventory.ItemStack;
 import com.mysql.jdbc.Statement;
 
 import jayms.plugin.db.Database;
+import jayms.plugin.event.EventDispatcher;
 import jayms.plugin.io.IO;
-import jayms.plugin.util.Rate;
+import jayms.plugin.packet.ExperienceMethods;
 import jayms.spellbound.SpellBoundPlugin;
 import jayms.spellbound.bind.BindingBelt;
 import jayms.spellbound.bind.Slot;
+import jayms.spellbound.event.AfterManaChangeEvent;
+import jayms.spellbound.event.ManaChangeEvent;
 import jayms.spellbound.items.wands.Wand;
 import jayms.spellbound.spells.Spell;
-import jayms.spellbound.spells.SpellData;
+import jayms.spellbound.spells.data.SpellData;
 
 public class SpellBoundPlayer implements IO {
 
@@ -35,11 +38,17 @@ public class SpellBoundPlayer implements IO {
 	
 	private double maxMana;
 	private double mana;
-	private Rate manaRegen;
+	private double manaRegen;
+	private long manaRegenTime;
+	
+	private long nextImpact;
 	
 	private Wand selectedWand;
 	private boolean battleMode = false;
 	private int slotInside = -1;
+	
+	private StopRegenContainer stopRegenHit;
+	private StopRegenContainer stopRegenCast;
 
 	public SpellBoundPlayer(SpellBoundPlugin running, Player bukkitPlayer) {
 		this.running = running;
@@ -52,9 +61,14 @@ public class SpellBoundPlayer implements IO {
 		FileConfiguration config = running.getConfiguration();
 		this.maxMana = config.getDouble("SpellBoundPlayerDefaults.maxMana");
 		this.mana = config.getDouble("SpellBoundPlayerDefaults.mana");
-		double rate = config.getDouble("SpellBoundPlayerDefaults.manaRegen.rate");
-		long rateTime = config.getLong("SpellBoundPlayerDefaults.manaRegen.rateTime");
-		this.manaRegen = new Rate(rate, rateTime, mana, maxMana);
+		this.manaRegen = config.getDouble("SpellBoundPlayerDefaults.manaRegen.rate");
+		this.manaRegenTime = config.getLong("SpellBoundPlayerDefaults.manaRegen.rateTime");
+		stopRegenHit = new StopRegenContainer();
+		stopRegenHit.setStopRegen(config.getBoolean("Settings.StopManaRegenIfHit"));
+		stopRegenHit.setReturnRegenAfterTime(config.getLong("Settings.ReturnRegenAfterHit"));
+		stopRegenCast = new StopRegenContainer();
+		stopRegenCast.setStopRegen(config.getBoolean("Settings.StopManaRegenIfCast"));
+		stopRegenCast.setReturnRegenAfterTime(config.getLong("Settings.ReturnRegenAfterCast"));
 	}
 
 	@Override
@@ -72,7 +86,8 @@ public class SpellBoundPlayer implements IO {
 			if (rs.next()) {
 				maxMana = rs.getDouble("MaxMana");
 				mana = rs.getDouble("Mana");
-				manaRegen = new Rate(rs.getDouble("ManaRegenRate"), rs.getLong("ManaRegenRateTime"), mana, maxMana);
+				manaRegen = rs.getDouble("ManaRegenRate");
+				manaRegenTime = rs.getLong("ManaRegenRateTime");
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
@@ -121,13 +136,12 @@ public class SpellBoundPlayer implements IO {
 		sbpstmt = sbpstmt.replace("%key%", bukkitPlayer.getUniqueId().toString());
 		sbpstmt = sbpstmt.replace("%maxMana%", Double.toString(maxMana));
 		sbpstmt = sbpstmt.replace("%mana%", Double.toString(mana));
-		sbpstmt = sbpstmt.replace("%manaRegenRate%", Double.toString(manaRegen.getRate()));
-		sbpstmt = sbpstmt.replace("%manaRegenRateTime%", Long.toString(manaRegen.getRateTime()));
+		sbpstmt = sbpstmt.replace("%manaRegenRate%", Double.toString(manaRegen));
+		sbpstmt = sbpstmt.replace("%manaRegenRateTime%", Long.toString(manaRegenTime));
 		for (int i = 0; i < slotIds.length; i++) {
 			sbpstmt = sbpstmt.replace("%slot" + (i+1) + "ID%", Integer.toString(slotIds[i]));
 		}
 		db.modifyQuery(sbpstmt);
-		System.out.println("Saved!");
 	}
 	
 	public int getSlotID(int slot) {
@@ -184,6 +198,7 @@ public class SpellBoundPlayer implements IO {
 		}
 
 		this.maxMana = maxMana;
+		;
 	}
 
 	public double getMana() {
@@ -192,19 +207,49 @@ public class SpellBoundPlayer implements IO {
 
 	public void setMana(double mana) {
 
+		EventDispatcher ed = running.getEventDispatcher();
+		
+		ManaChangeEvent event = new ManaChangeEvent(this, mana);
+
+		ed.callEvent(event);
+		
+		if (event.isCancelled()) {
+			return;
+		}
+		
+		mana = event.getManaToChange();
+		
+		if (event.isCancelled()) {
+			return;
+		}
+		
 		if (mana < 0 || mana > Double.MAX_VALUE) {
 			throw new IllegalArgumentException("Mana can't be lower be this number!");
 		}
-
+		
 		this.mana = mana;
+		
+		ed.callEvent(new AfterManaChangeEvent(this));
 	}
 
-	public Rate getManaRegen() {
-		return manaRegen;
+	public void setManaRegenTime(long manaRegenTime) {
+		this.manaRegenTime = manaRegenTime;
 	}
-
-	public void setManaRegen(Rate manaRegen) {
+	
+	public boolean hasMaxMana() {
+		return mana >= maxMana;
+	}
+	
+	public long getManaRegenTime() {
+		return manaRegenTime;
+	}
+	
+	public void setManaRegen(double manaRegen) {
 		this.manaRegen = manaRegen;
+	}
+	
+	public double getManaRegen() {
+		return manaRegen;
 	}
 
 	public boolean isBattleMode() {
@@ -242,7 +287,6 @@ public class SpellBoundPlayer implements IO {
 		
 		Set<Wand> wands = getWands();
 		if (!wands.isEmpty()) {
-			System.out.println(wands.iterator().next());
 			setSelectedWand(wands.iterator().next());
 			return true;
 		}
@@ -298,9 +342,95 @@ public class SpellBoundPlayer implements IO {
 	public SpellData getSpellData(Spell spell) {
 		return spellData.get(spell.getUniqueName());
 	}
+	
+	public void gotHit() {
+		stopRegenHit.update();
+	}
+	
+	public void castedSpell() {
+		stopRegenCast.update();
+	}
+	
+	public void showMana() {
+		double maxMana = getMaxMana();
+		double mana = getMana();
+		
+		float perc = (float) (mana / maxMana);
+		
+		ExperienceMethods.sendExperience(perc, 0, (int) mana, bukkitPlayer);
+	}
+	
+	public void hideMana() {
+		ExperienceMethods.sendExperience(bukkitPlayer.getExp(), bukkitPlayer.getLevel(), bukkitPlayer.getTotalExperience(), bukkitPlayer);
+	}
+	
+	public void regenerateMana() {
+		if (stopRegenHit.isStopRegen() && !stopRegenHit.canReturnFrom()) {
+			return;
+		}
+		if (stopRegenCast.isStopRegen() && !stopRegenCast.canReturnFrom()) {
+			return;
+		}
+		if (elapsed()) {
+			if (hasMaxMana()) {
+				return;
+			}
+			double manaToSet = getMana() + getManaRegen();
+			if (manaToSet > getMaxMana()) {
+				manaToSet = getMaxMana();
+			}
+			setMana(manaToSet);
+			nextImpact = System.currentTimeMillis() + getManaRegenTime();
+		}
+	}
+	
+	private boolean elapsed() {
+		return System.currentTimeMillis() > nextImpact;
+	}
 
 	public Player getBukkitPlayer() {
 		return bukkitPlayer;
 	}
+	
+	private static final class StopRegenContainer {
+		
+		private boolean stopRegen;
+		private long returnRegenAfterTime;
+		private long timeCanReturn;
+		
+		private StopRegenContainer() {	
+		}
+		
+		public boolean isStopRegen() {
+			return stopRegen;
+		}
 
-}
+		public void setStopRegen(boolean stopRegen) {
+			this.stopRegen = stopRegen;
+		}
+
+		public long getReturnRegenAfterTime() {
+			return returnRegenAfterTime;
+		}
+
+		public void setReturnRegenAfterTime(long returnRegenAfterTime) {
+			this.returnRegenAfterTime = returnRegenAfterTime;
+		}
+
+		public long getTimeCanReturn() {
+			return timeCanReturn;
+		}
+
+		public void setTimeCanReturn(long timeCanReturn) {
+			this.timeCanReturn = timeCanReturn;
+		}
+		
+		public void update() {
+			setTimeCanReturn(System.currentTimeMillis() + getReturnRegenAfterTime());
+		}
+
+		public boolean canReturnFrom() {
+			return System.currentTimeMillis() > getTimeCanReturn();
+		}
+	}
+ }

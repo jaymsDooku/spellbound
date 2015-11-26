@@ -8,6 +8,7 @@ import org.bukkit.event.player.PlayerQuitEvent;
 
 import jayms.plugin.event.EventDispatcher;
 import jayms.plugin.event.update.Updater;
+import jayms.plugin.packet.EntityMethods;
 import jayms.plugin.system.ParentPlugin;
 import jayms.spellbound.command.SpellBoundBattleModeToggleCommand;
 import jayms.spellbound.command.SpellBoundBindCommand;
@@ -25,6 +26,7 @@ public abstract class SpellBoundPlugin extends ParentPlugin {
 	private SpellBoundPlayerHandler sbph;
 	private SpellHandler sh;
 	private WandHandler wh;
+	private EntityMethods entityMethods;
 	
 	public SpellBoundPlugin() {
 		super();
@@ -72,7 +74,10 @@ public abstract class SpellBoundPlugin extends ParentPlugin {
 		sbph = new SpellBoundPlayerHandler(this);
 		sh = new SpellHandler(this);
 		wh = new WandHandler(this);
+		entityMethods = new EntityMethods(this);
 		eventDispatcher.registerListener(sbph);
+		eventDispatcher.registerListener(wh);
+		eventDispatcher.registerListener(entityMethods);
 	}
 	
 	private void registerSpells() {
@@ -84,16 +89,22 @@ public abstract class SpellBoundPlugin extends ParentPlugin {
 		FileConfiguration config = getConfiguration();
 		
 		config.addDefault("Settings.AutoSaveBinds", true);
+		config.addDefault("Settings.AutoSaveAttributes", true);
+		config.addDefault("Settings.StopManaRegenIfHit", true);
+		config.addDefault("Settings.ReturnRegenAfterTime", 1000L);
+		config.addDefault("Settings.StopManaRegenIfCast", true);
+		config.addDefault("Settings.ReturnRegenAfterCast", 3000L);
 		
-		config.addDefault("SpellBoundPlayerDefaults.maxMana", 1000D);
+		config.addDefault("SpellBoundPlayerDefaults.maxMana", 100D);
 		config.addDefault("SpellBoundPlayerDefaults.manaRegen.rate", 10D);
-		config.addDefault("SpellBoundPlayerDefaults.manaRegen.rateTime", 5000L);
-		config.addDefault("SpellBoundPlayerDefaults.mana", 1000D);
+		config.addDefault("SpellBoundPlayerDefaults.manaRegen.rateTime", 1000L);
+		config.addDefault("SpellBoundPlayerDefaults.mana", 100D);
 		
-		config.addDefault("Spells.Offense.CalidumDolor.Damage", 2D);
+		config.addDefault("Spells.Offense.CalidumDolor.Damage", 4D);
 		config.addDefault("Spells.Offense.CalidumDolor.Fire", true);
+		config.addDefault("Spells.Offense.CalidumDolor.FireChance", 25);
 		config.addDefault("Spells.Offense.CalidumDolor.SpeedFactor", 1.2D);
-		config.addDefault("Spells.Offense.CalidumDolor.Cooldown", 5000L);
+		config.addDefault("Spells.Offense.CalidumDolor.Cooldown", 2000L);
 		config.addDefault("Spells.Offense.CalidumDolor.ManaCost", 10D);
 		config.addDefault("Spells.Offense.CalidumDolor.HealthCost", 0D);
 		config.addDefault("Spells.Offense.CalidumDolor.Gravity", -0.25D);
@@ -121,5 +132,9 @@ public abstract class SpellBoundPlugin extends ParentPlugin {
 	
 	public WandHandler getWandHandler() {
 		return wh;
+	}
+
+	public EntityMethods getEntityMethods() {
+		return entityMethods;
 	}
 }

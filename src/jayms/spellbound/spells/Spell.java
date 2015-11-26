@@ -7,11 +7,11 @@ import org.bukkit.event.Listener;
 import jayms.plugin.system.description.Version;
 import jayms.spellbound.player.SpellBoundPlayer;
 
-public interface Spell extends Listener {
+public interface Spell extends Listener, Comparable<Spell> {
 	
 	boolean enable(SpellBoundPlayer sbPlayer);
 	
-	boolean disable(SpellBoundPlayer sbPlayer, boolean cooldown);
+	boolean disable(SpellBoundPlayer sbPlayer, boolean effects);
 	
 	boolean hasEnabled(SpellBoundPlayer sbPlayer);
 	
@@ -33,6 +33,7 @@ public interface Spell extends Listener {
 	
 	long getCooldown();
 	
-	Set<SpellBoundPlayer> getUsing();
+	int getPower();
 	
+	Set<SpellBoundPlayer> getUsing();
 }

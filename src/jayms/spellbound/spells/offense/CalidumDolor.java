@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Entity;
@@ -17,39 +18,34 @@ import jayms.plugin.event.update.UpdateEvent;
 import jayms.plugin.packet.ParticleEffect;
 import jayms.plugin.packet.ParticleEffect.BlockData;
 import jayms.plugin.system.description.Version;
+import jayms.plugin.util.CommonUtil;
 import jayms.plugin.util.MCUtil;
+import jayms.plugin.util.tuple.Tuple;
 import jayms.spellbound.SpellBoundPlugin;
 import jayms.spellbound.player.SpellBoundPlayer;
 import jayms.spellbound.spells.AbstractSpell;
-import jayms.spellbound.spells.SpellData;
+import jayms.spellbound.spells.Spell;
+import jayms.spellbound.spells.data.CommonData;
 
 public class CalidumDolor extends AbstractSpell {
-
+	
+	private double damage;
+	private double speed;
+	private double gravity;
+	private double range;
+	private boolean fire;
+	private int fireChance;
+	
 	private enum CalidumDolorState {
 		START, SHOOT;
 	}
 
-	private static class CalidumDolorData implements SpellData {
+	private static class CalidumDolorData extends CommonData {
 
 		CalidumDolorState state = CalidumDolorState.START;
-		Location loc;
-		Location origin;
-		Vector dir;
-		Vector velocity = new Vector(0, 2, 0);
-
-		double damage;
-		double speed;
-		boolean fire;
-		double gravity;
-		double range;
-
-		public CalidumDolorData(SpellBoundPlugin running) {
-			FileConfiguration config = running.getConfiguration();
-			damage = config.getDouble("Spells.Offense.CalidumDolor.Damage");
-			speed = config.getDouble("Spells.Offense.CalidumDolor.SpeedFactor");
-			fire = config.getBoolean("Spells.Offense.CalidumDolor.Fire");
-			gravity = config.getDouble("Spells.Offense.CalidumDolor.Gravity");
-			range = config.getDouble("Spells.Offense.CalidumDolor.Range");
+		
+		public CalidumDolorData(Spell parent) {
+			super(parent);
 		}
 
 	}
@@ -60,6 +56,14 @@ public class CalidumDolor extends AbstractSpell {
 		cooldown = config.getLong("Spells.Offense.CalidumDolor.Cooldown");
 		manaCost = config.getDouble("Spells.Offense.CalidumDolor.ManaCost");
 		healthCost = config.getDouble("Spells.Offense.CalidumDolor.HealthCost");
+		gravity = config.getDouble("Spells.Offense.CalidumDolor.Gravity");
+		range = config.getDouble("Spells.Offense.CalidumDolor.Range");
+		fire = config.getBoolean("Spells.Offense.CalidumDolor.Fire");
+		fireChance = config.getInt("Spells.Offense.CalidumDolor.FireChance");
+		damage = config.getDouble("Spells.Offense.CalidumDolor.Damage");
+		speed = config.getDouble("Spells.Offense.CalidumDolor.SpeedFactor");
+		fire = config.getBoolean("Spells.Offense.CalidumDolor.Fire");
+		power = (int) (damage * 5);
 	}
 
 	@Override
@@ -67,21 +71,24 @@ public class CalidumDolor extends AbstractSpell {
 		if (!super.enable(sbPlayer)) {
 			return false;
 		}
-		sbPlayer.putSpellData(this, new CalidumDolorData(running));
+		sbPlayer.putSpellData(this, new CalidumDolorData(this));
+		cooldownHandler.cooldown(sbPlayer, getCooldown());
 		return sbPlayers.add(sbPlayer);
 	}
 
 	@Override
-	public boolean disable(SpellBoundPlayer sbPlayer, boolean cooldown) {
+	public boolean disable(SpellBoundPlayer sbPlayer, boolean effects) {
 		if (!hasEnabled(sbPlayer)) {
 			return false;
 		}
+		
+		CalidumDolorData data = (CalidumDolorData) sbPlayer.getSpellData(this);
+		data.loc = data.loc.add(data.loc.getDirection().multiply(-1).multiply(1.1).normalize());
+		playSound(data.loc, Sound.EXPLODE, 1f, 50f);
+		ParticleEffect.LAVA.display(data.loc, 0.2f, 0.2f, 0.2f, 0.3f, 12);
+		
 		sbPlayer.putSpellData(this, null);
 		sbPlayers.remove(sbPlayer);
-
-		if (cooldown) {
-			cooldownHandler.cooldown(sbPlayer, getCooldown());
-		}
 		return true;
 	}
 
@@ -128,19 +135,20 @@ public class CalidumDolor extends AbstractSpell {
 			case START:
 				data.loc = player.getEyeLocation();
 				data.origin = player.getLocation();
+				playSound(data.origin, Sound.BLAZE_HIT, 0.5f, 2f);
 				data.dir = player.getEyeLocation().getDirection();
-				data.velocity = data.dir.multiply(data.speed);
+				data.velocity = data.dir.multiply(speed);
 				data.state = CalidumDolorState.SHOOT;
 				break;
 			case SHOOT:
 
 				Location loc = data.loc;
 				data.loc = loc.add(data.velocity);
-				data.velocity = data.velocity.add(new Vector(0, data.gravity, 0).multiply(0.15f));
+				data.velocity = data.velocity.add(new Vector(0, gravity, 0).multiply(0.15f));
 
-				//ParticleEffect.SMOKE_NORMAL.display(data.loc, 0.05f, 0.05f, 0.05f, 0.01f, 11);
 				ParticleEffect.BLOCK_CRACK.display(new BlockData(Material.OBSIDIAN, (byte) 0), 0.2f, 0.2f, 0.2f, 0.04f, 11, data.loc, 257);
-				ParticleEffect.FLAME.display(data.loc, 0.1f, 0.1f, 0.1f, 0.06f, 9);
+				ParticleEffect.FLAME.display(data.loc, 0.1f, 0.1f, 0.1f, 0.03f, 9);
+				playSound(data.loc, Sound.BLAZE_BREATH, 0.4f, 100f);
 
 				if (!sbp.getBukkitPlayer().isOnline()) {
 					disable(sbp, false);
@@ -149,12 +157,12 @@ public class CalidumDolor extends AbstractSpell {
 
 				Block block = data.loc.getBlock();
 				
-				if (data.loc.distance(data.origin) > data.range) {
+				if (data.loc.distance(data.origin) > range) {
 					disable(sbp, true);
 					return;
 				}
 
-				if (block.getType() != Material.AIR) {
+				if (MCUtil.isSolid(block) || block.isLiquid()) {
 					disable(sbp, true);
 					return;
 				}
@@ -163,10 +171,16 @@ public class CalidumDolor extends AbstractSpell {
 				
 				if (affectedEntities.size() > 0) {
 					List<LivingEntity> livingAE = MCUtil.getLivingEntitiesFromEntities(affectedEntities);
-					MCUtil.damageEntities(data.damage, sbp.getBukkitPlayer(), livingAE.toArray(new LivingEntity[livingAE.size()]));
+					LivingEntity[] livingAEArray = livingAE.toArray(new LivingEntity[livingAE.size()]);
+					MCUtil.damageEntities(damage, sbp.getBukkitPlayer(), livingAEArray);
+					if (CommonUtil.hasChance(fireChance)) {
+						MCUtil.setFire(100, livingAEArray);
+					}
 					disable(sbp, true);
 					return;
 				}
+				
+				collideSpells(sbp, loc, range, data.uuid);
 				break;
 			default:
 				break;

@@ -1,13 +1,20 @@
 package jayms.spellbound.spells;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
+import org.bukkit.Sound;
 
 import jayms.plugin.event.EventDispatcher;
 import jayms.plugin.util.CooldownHandler;
+import jayms.plugin.util.MCUtil;
+import jayms.plugin.util.tuple.Tuple;
 import jayms.spellbound.SpellBoundPlugin;
+import jayms.spellbound.event.CastSpellEvent;
 import jayms.spellbound.player.SpellBoundPlayer;
 
 public abstract class AbstractSpell implements Spell {
@@ -20,6 +27,7 @@ public abstract class AbstractSpell implements Spell {
 	protected long cooldown;
 	protected double manaCost;
 	protected double healthCost;
+	protected int power = 0;
 
 	protected AbstractSpell(SpellBoundPlugin running) {
 		this.running = running;
@@ -51,13 +59,40 @@ public abstract class AbstractSpell implements Spell {
 		sbPlayer.getBukkitPlayer().setHealth(setHealth);
 		return true;
 	}
+	
+	protected final void playSound(Location loc, Sound sound, float vol, float pit) {
+		MCUtil.playSound(loc, sound, vol, pit);
+	}
+	
+	protected final void collideSpells(SpellBoundPlayer sbp, Location loc, double range,UUID... except) {
+		
+		List<Tuple<Spell, SpellBoundPlayer>> spells = running.getSpellHandler().getSpellAroundPoint(loc, range, except);
+		
+		if (!spells.isEmpty()) {
+			for (Tuple<Spell, SpellBoundPlayer> spellTuple : spells) {
+				SpellBoundPlayer spellSbp = spellTuple.getB();
+				Spell spell  = spellTuple.getA();
+				int compare = compareTo(spell);
+				switch (compare) {
+				case 1:
+					disable(sbp, true);
+					break;
+				case 0:
+					disable(sbp, true);
+					spell.disable(spellSbp, true);
+					break;
+				case -1:
+					spell.disable(spellSbp, true);
+					break;
+				default:
+					break;
+				}
+			}
+		}
+	}
 
 	@Override
 	public boolean enable(SpellBoundPlayer sbPlayer) {
-		if (hasEnabled(sbPlayer)) {
-			sbPlayer.getBukkitPlayer().sendMessage(ChatColor.DARK_RED + "You can only run one instance of " + getDisplayName() + "!");
-			return false;
-		}
 		if (cooldownHandler.isOnCooldown(sbPlayer)) {
 			sbPlayer.getBukkitPlayer().sendMessage(ChatColor.DARK_RED + getDisplayName() + " is on cooldown! Time Left: " + ((float) cooldownHandler.timeLeft(sbPlayer) / 1000) + " Seconds");
 			return false;
@@ -68,8 +103,14 @@ public abstract class AbstractSpell implements Spell {
 		}
 		if (!applyHealthCost(sbPlayer)) {
 			sbPlayer.getBukkitPlayer().sendMessage(ChatColor.DARK_RED + "You do not have enough health to cast this spell!");
+			return false;
 		}
-		return true;
+		
+		CastSpellEvent event = new CastSpellEvent(sbPlayer, this);
+		
+		eventDispatcher.callEvent(event);
+		
+		return !event.isCancelled();
 	}
 
 	@Override
@@ -96,5 +137,27 @@ public abstract class AbstractSpell implements Spell {
 	public long getCooldown() {
 		return cooldown;
 	}
-
+	
+	@Override
+	public int getPower() {
+		return power;
+	}
+	
+	@Override
+	public int compareTo(Spell spell) {
+		
+		int ouPower = getPower();
+		int spPower = spell.getPower();
+		
+		if (spPower > ouPower) {
+			return 1;
+		}else if (spPower == ouPower) {
+			return 0;
+		}else if (spPower < ouPower) {
+			return -1;
+		}
+		
+		return 0;
+	}
+	
 }

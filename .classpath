@@ -10,5 +10,7 @@
 	<classpathentry kind="lib" path="C:/Users/james.CEX-PC/Desktop/PluginEnterprise Server/minecraft_server.jar"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/PluginEnterprise"/>
 	<classpathentry kind="lib" path="C:/Users/james.CEX-PC/Desktop/PluginEnterprise Server/plugins/NoCheatPlus.jar"/>
+	<classpathentry kind="lib" path="C:/Users/james.CEX-PC/Desktop/PluginEnterprise Server/plugins/ProtocolLib.jar"/>
+	<classpathentry kind="lib" path="C:/Users/james.CEX-PC/Desktop/PluginEnterprise Server/plugins/HologramAPI_v1.3.7.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
