@@ -1,5 +1,10 @@
 package jayms.spellbound.spells;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -15,8 +20,10 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import de.inventivegames.hologram.Hologram;
 import de.inventivegames.hologram.HologramAPI;
+import jayms.plugin.event.CooldownChangeEvent;
 import jayms.plugin.event.update.UpdateEvent;
 import jayms.plugin.packet.chat.ChatHandler;
+import jayms.plugin.util.CooldownHandler;
 import jayms.plugin.util.MCUtil;
 import jayms.spellbound.SpellBoundPlugin;
 import jayms.spellbound.event.AfterManaChangeEvent;
@@ -29,6 +36,7 @@ import jayms.spellbound.player.SpellBoundPlayerHandler;
 public class SpellListener implements Listener {
 
 	private SpellBoundPlugin running;
+	private Set<Entity> holograms = new HashSet<>();
 	
 	public SpellListener(SpellBoundPlugin running) {
 		this.running = running;
@@ -83,16 +91,18 @@ public class SpellListener implements Listener {
 			if (sp.isShiftClick() && !sbp.getBukkitPlayer().isSneaking()) {
 				return;
 			}
-			Hologram hologram = HologramAPI.createHologram(sbp.getBukkitPlayer().getEyeLocation().add(0, 1, 0), sp.getDisplayName() + " " + sp.getPower() + "p");
+			Hologram hologram = HologramAPI.createHologram(sbp.getBukkitPlayer().getEyeLocation().add(0, 1, 0), sp.getDisplayName().applyColour() + " " + sp.getPowerColor() + sp.getPower() + "p");
 			hologram.spawn();
+			holograms.add(hologram.getAttachedTo());
 			new BukkitRunnable() {
 
 				@Override
 				public void run() {
-					hologram.despawn();
 					sp.enable(sbp);
+					hologram.despawn();
+					holograms.remove(hologram.getAttachedTo());
 				}
-			}.runTaskLater(running.getSelf(), 4L);
+			}.runTaskLater(running.getSelf(), 5L);
 		}
 	}
 	
@@ -117,7 +127,7 @@ public class SpellListener implements Listener {
 			return;
 		}
 		
-		String spTs = sp.getDisplayName();
+		String spTs = sp.getDisplayName().applyColour();
 		
 		ChatHandler.sendActionBar(spTs, sbp.getBukkitPlayer());
 	}
@@ -164,6 +174,12 @@ public class SpellListener implements Listener {
 					public void run() {
 						MCUtil.clear(inv, inv.getHeldItemSlot(), 1);
 						sbp.getBukkitPlayer().updateInventory();
+						ItemStack it = sbp.getBukkitPlayer().getItemInHand();
+						if (it != null) {
+							if (it.getAmount() <= 0) {
+								it.setAmount(1);
+							}
+						}
 					}
 				}.runTaskLater(running.getSelf(), 1L);
 			}else {
@@ -216,5 +232,18 @@ public class SpellListener implements Listener {
 		SpellBoundPlayer sbp = e.getSpellBoundPlayer();
 		
 		sbp.castedSpell();
+	}
+	
+	@EventHandler(priority = EventPriority.NORMAL)
+	public void onCooldownChange(CooldownChangeEvent<SpellBoundPlayer> e) {
+		CooldownHandler<SpellBoundPlayer> ch = e.getCooldownHandler();
+		
+		for (SpellBoundPlayer sbp : ch.getElements().keySet()) {
+			sbp.getScoreboard().updateAndShow();
+		}
+	}
+	
+	public Set<Entity> getHologramEntitys() {
+		return Collections.unmodifiableSet(holograms);
 	}
 }

@@ -74,9 +74,8 @@ public class SpellHandler {
 					if (Arrays.asList(except).contains(td.uuid)) continue;
 						if (sd instanceof CommonData) {
 							CommonData data = (CommonData) sd;
-							System.out.println(data);
-							System.out.println(data.loc);
-							if (data.loc.distance(loc) < range) {
+							System.out.println(loc.distance(data.loc));
+							if (loc.distance(data.loc) < range) {
 								result.add(new Tuple<>(sp, sbp));
 							}
 						}
@@ -86,5 +85,9 @@ public class SpellHandler {
 		}
 		
 		return result;
+	}
+	
+	public SpellListener getListener() {
+		return listener;
 	}
 }

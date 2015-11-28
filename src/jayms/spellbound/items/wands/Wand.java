@@ -153,13 +153,7 @@ public class Wand implements IWand {
 		}
 		NBTTagCompound display = root.getCompound("display");
 		display.setString("Name", wandName);
-		if (!display.hasKey("Lore")) {
-			display.set("Lore", new NBTTagList());
-		}
-		NBTTagList lore = display.getList("Lore", 8);
-		for (int l = 0; l < lore.size(); l++) {
-			lore.a(l);
-		}
+		NBTTagList lore = new NBTTagList();
 		SpellType[] values = SpellType.values();
 		for (int t = 0; t < values.length; t++) {
 			SpellType st = values[t];

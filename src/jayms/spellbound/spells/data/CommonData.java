@@ -11,7 +11,7 @@ public class CommonData extends TopData implements SpellData {
 	public Location loc;
 	public Location origin;
 	public Vector dir;
-	public Vector velocity = new Vector(0, 2, 0);
+	public Vector velocity;
 	
 	public CommonData(Spell parent) {
 		this.parent = parent;

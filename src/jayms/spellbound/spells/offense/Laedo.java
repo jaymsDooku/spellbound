@@ -1,14 +1,11 @@
 package jayms.spellbound.spells.offense;
 
-import java.util.List;
-
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -16,12 +13,9 @@ import org.bukkit.util.Vector;
 
 import jayms.plugin.event.update.UpdateEvent;
 import jayms.plugin.packet.ParticleEffect;
-import jayms.plugin.packet.ParticleEffect.BlockData;
 import jayms.plugin.system.description.Version;
 import jayms.plugin.util.ColourableString;
-import jayms.plugin.util.CommonUtil;
 import jayms.plugin.util.MCUtil;
-import jayms.plugin.util.tuple.Tuple;
 import jayms.spellbound.SpellBoundPlugin;
 import jayms.spellbound.player.SpellBoundPlayer;
 import jayms.spellbound.spells.AbstractSpell;
@@ -30,43 +24,40 @@ import jayms.spellbound.spells.Spell;
 import jayms.spellbound.spells.SpellType;
 import jayms.spellbound.spells.data.CommonData;
 
-public class CalidumDolor extends AbstractSpell {
-
-	private CalidumDolorSpellVariables variables;
-	private boolean fire;
-	private int fireChance;
+public class Laedo extends AbstractSpell {
 	
-	private class CalidumDolorSpellVariables extends CommonSpellVariables {
+	private LaedoSpellVariables variables;
 	
-		public int fireTicks;
+	private class LaedoSpellVariables extends CommonSpellVariables {
 		
-		public CalidumDolorSpellVariables() {
+		public int slowIntensity;
+		public long slowTime;
+		
+		public LaedoSpellVariables() {
+			
 		}
 	}
-
-	private class CalidumDolorData extends CommonData {
-
-		public CalidumDolorData(Spell parent) {
+	
+	private class LaedoData extends CommonData {
+		
+		public LaedoData(Spell parent) {
 			super(parent);
 		}
-
 	}
-
-	public CalidumDolor(SpellBoundPlugin running) {
+		
+	public Laedo(SpellBoundPlugin running) {
 		super(running);
-		variables = new CalidumDolorSpellVariables();
+		variables = new LaedoSpellVariables();
 		FileConfiguration config = running.getConfiguration();
-		cooldown = config.getLong("Spells.Offense.CalidumDolor.Cooldown");
-		manaCost = config.getDouble("Spells.Offense.CalidumDolor.ManaCost");
-		healthCost = config.getDouble("Spells.Offense.CalidumDolor.HealthCost");
-		variables.gravity = config.getDouble("Spells.Offense.CalidumDolor.Gravity");
-		variables.range = config.getDouble("Spells.Offense.CalidumDolor.Range");
-		fire = config.getBoolean("Spells.Offense.CalidumDolor.Fire");
-		fireChance = config.getInt("Spells.Offense.CalidumDolor.FireChance");
-		variables.damage = config.getDouble("Spells.Offense.CalidumDolor.Damage");
-		variables.speed = config.getDouble("Spells.Offense.CalidumDolor.Speed");
-		fire = config.getBoolean("Spells.Offense.CalidumDolor.Fire");
-		variables.fireTicks = config.getInt("Spells.Offense.CalidumDolor.FireTicks");
+		cooldown = config.getLong("Spells.Offense.Laedo.Cooldown");
+		manaCost = config.getDouble("Spells.Offense.Laedo.ManaCost");
+		healthCost = config.getDouble("Spells.Offense.Laedo.HealthCost");
+		variables.gravity = config.getDouble("Spells.Offense.Laedo.Gravity");
+		variables.range = config.getDouble("Spells.Offense.Laedo.Range");
+		variables.damage = config.getDouble("Spells.Offense.Laedo.Damage");
+		variables.speed = config.getDouble("Spells.Offense.Laedo.Speed");
+		variables.slowIntensity = config.getInt("Spells.Offense.Laedo.SlowIntensity");
+		variables.slowTime = config.getLong("Spells.Offense.Laedo.SlowTime");
 		power = toPower(variables.damage);
 	}
 
@@ -79,18 +70,13 @@ public class CalidumDolor extends AbstractSpell {
 		returnToMainSlots(sbPlayer);
 		return sbPlayers.add(sbPlayer);
 	}
-
+	
 	@Override
 	public boolean disable(SpellBoundPlayer sbPlayer, boolean effects) {
 		if (!hasEnabled(sbPlayer)) {
 			return false;
 		}
-
-		CalidumDolorData data = (CalidumDolorData) sbPlayer.getSpellData(this);
-		data.loc = data.loc.add(data.loc.getDirection().multiply(-1).multiply(1.1).normalize());
-		playSound(data.loc, Sound.EXPLODE, 1f, 50f);
-		ParticleEffect.LAVA.display(data.loc, 0.2f, 0.2f, 0.2f, 0.3f, 12);
-
+		
 		sbPlayer.putSpellData(this, null);
 		sbPlayers.remove(sbPlayer);
 		return true;
@@ -98,12 +84,12 @@ public class CalidumDolor extends AbstractSpell {
 
 	@Override
 	public String getUniqueName() {
-		return "CalidumDolor";
+		return "Laedo";
 	}
 
 	@Override
 	public ColourableString getDisplayName() {
-		return new ColourableString("CalidumDolor") {
+		return new ColourableString("Laedo") {
 
 			@Override
 			public String applyColour(ChatColor... extras) {
@@ -113,31 +99,18 @@ public class CalidumDolor extends AbstractSpell {
 					result += format;
 				}
 				result += toString();
-
+				
 				result = ChatColor.translateAlternateColorCodes('&', result);
-
+				
 				return result;
 			}
-
+			
 		};
 	}
 
 	@Override
 	public ColourableString[] getDescription() {
-		return new ColourableString[] { new ColourableString("Have a coal ore in your hot bar to use this spell.") {
-
-			@Override
-			public String applyColour(ChatColor... extras) {
-				return ChatColor.translateAlternateColorCodes('&', "&6" + toString());
-			}
-
-		}, new ColourableString("Click to heat up the coal, and then shoot it forward.") {
-
-			@Override
-			public String applyColour(ChatColor... extras) {
-				return ChatColor.translateAlternateColorCodes('&', "&6" + toString());
-			}
-		} };
+		return new ColourableString[]{};
 	}
 
 	@Override
@@ -164,18 +137,21 @@ public class CalidumDolor extends AbstractSpell {
 	public SpellType getType() {
 		return SpellType.OFFENSE;
 	}
-
+	
+	//private double u = -Math.PI/2;
+	//private double v = 0;
+	
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onUpdate(UpdateEvent e) {
 		for (SpellBoundPlayer sbp : sbPlayers) {
 			Player player = sbp.getBukkitPlayer();
-			CalidumDolorData data = (CalidumDolorData) sbp.getSpellData(this);
+			LaedoData data = (LaedoData) sbp.getSpellData(this);
 			if (data == null) {
-				sbp.putSpellData(this, new CalidumDolorData(this));
-				data = (CalidumDolorData) sbp.getSpellData(this);
+				sbp.putSpellData(this, new LaedoData(this));
+				data = (LaedoData) sbp.getSpellData(this);
 				data.loc = player.getEyeLocation();
 				data.origin = player.getLocation();
-				playSound(data.origin, Sound.BLAZE_HIT, 0.5f, 2f);
+				playSound(data.origin, Sound.FIREWORK_LAUNCH, 0.5f, 2f);
 				data.dir = player.getEyeLocation().getDirection();
 				data.velocity = new Vector();
 			}
@@ -189,12 +165,32 @@ public class CalidumDolor extends AbstractSpell {
 			Location loc = data.loc;
 			data.loc = loc.add(data.velocity);
 			data.velocity = applyGravity(data.velocity, variables.gravity, delta);
-
-			ParticleEffect.BLOCK_CRACK.display(new BlockData(Material.OBSIDIAN, (byte) 0), 0.2f, 0.2f, 0.2f, 0.04f, 11,
-					data.loc, 257);
-			ParticleEffect.FLAME.display(data.loc, 0.1f, 0.1f, 0.1f, 0.03f, 9);
-			playSound(data.loc, Sound.BLAZE_BREATH, 0.4f, 100f);
-
+			
+			Location tempLoc = loc.clone();
+			
+			World w = tempLoc.getWorld();
+			Vector origin = tempLoc.toVector();
+			Vector originDir = tempLoc.getDirection();
+			
+			double forward = 2;
+			double lengths = 1.5;
+			
+			Vector pointA = new Vector();
+			Vector pointB = new Vector();
+			Vector pointC = new Vector();
+			Vector forwardPoint = origin.add(originDir.multiply(forward));
+			
+			pointA = origin.add(new Vector(0, (Math.sqrt(3)/2) * lengths, 0));
+			pointB = origin.add(new Vector(lengths/2, -(Math.sqrt(3)/2) * lengths, 0));
+			pointC = origin.add(new Vector(0, 0, -lengths/2));
+			
+			line(w, pointA, pointB);
+			line(w, pointB, pointC);
+			line(w, pointA, pointC);
+			line(w, forwardPoint, pointA);
+			line(w, forwardPoint, pointB);
+			line(w, forwardPoint, pointC);
+			
 			if (!sbp.getBukkitPlayer().isOnline()) {
 				disable(sbp, false);
 				return;
@@ -211,21 +207,36 @@ public class CalidumDolor extends AbstractSpell {
 				disable(sbp, true);
 				return;
 			}
-
-			List<Entity> affectedEntities = getAffectedEntities(data.loc, 2, sbp);
-
-			if (affectedEntities.size() > 0) {
-				Tuple<Boolean, Integer> fire = new Tuple<>(false, 100);
-				if (CommonUtil.hasChance(fireChance)) {
-					fire.setA(true);
-				}
-				damageEntities(affectedEntities, variables.damage, sbp, fire);
-				disable(sbp, true);
-				return;
-			}
-
-			collideSpells(sbp, loc, variables.range, data.uuid);
 		}
 	}
-
+	
+	private void line(World w, Vector h, Vector t) {
+		
+		Vector here = h.clone();
+		Vector there = t.clone();
+		
+		double dist = here.distance(there);
+		
+		double here_x = here.getX();
+		double here_y = here.getY();
+		double here_z = here.getZ();
+		
+		double there_x = there.getX();
+		double there_y = there.getY();
+		double there_z = there.getZ();
+		
+		double delta_x = there_x - here_x;
+		double delta_y = there_y - here_y;
+		double delta_z = there_z - here_z;
+		
+		double new_x = here_x;
+		double new_y = here_y;
+		double new_z = here_z;
+		while (dist > 0) {
+			ParticleEffect.FLAME.display(new Location(w, new_x, new_y, new_z), 0, 0, 0, 0, 1);
+			new_x = new_x + delta_x;
+			new_y = new_y + delta_y;
+			new_z = new_z + delta_z;
+		}
+	}
 }

@@ -26,14 +26,8 @@ public class WandHandler implements Listener {
 	}
 	
 	public void initialize() {
-		for (Player player : running.getSelf().getServer().getOnlinePlayers()) {
-			Inventory inv = player.getInventory();
-			for (ItemStack it : inv) {
-				if (it == null) continue;
-				if (Wand.isWand(it)) {
-					registerWand(new Wand(running, it));
-				}
-			}
+		for (SpellBoundPlayer sbp : running.getSpellBoundPlayerHandler().getCachedPlayers()) {
+			registerPlayersWands(sbp);
 		}
 	}
 	

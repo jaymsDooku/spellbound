@@ -14,10 +14,12 @@ import jayms.spellbound.command.SpellBoundBattleModeToggleCommand;
 import jayms.spellbound.command.SpellBoundBindCommand;
 import jayms.spellbound.command.SpellBoundCommand;
 import jayms.spellbound.command.SpellBoundGiveWandCommand;
+import jayms.spellbound.command.SpellBoundSetWandPercentCommand;
 import jayms.spellbound.items.wands.WandHandler;
 import jayms.spellbound.player.SpellBoundPlayerHandler;
 import jayms.spellbound.spells.SpellHandler;
 import jayms.spellbound.spells.offense.CalidumDolor;
+import jayms.spellbound.spells.offense.Laedo;
 
 public abstract class SpellBoundPlugin extends ParentPlugin {
 	
@@ -49,7 +51,8 @@ public abstract class SpellBoundPlugin extends ParentPlugin {
 		registerCommand("spellbound", new SpellBoundCommand(this)
 				, new SpellBoundBindCommand(this)
 				, new SpellBoundBattleModeToggleCommand(this)
-				, new SpellBoundGiveWandCommand(this));
+				, new SpellBoundGiveWandCommand(this)
+				, new SpellBoundSetWandPercentCommand(this));
 		return true;
 	}
 	
@@ -82,6 +85,7 @@ public abstract class SpellBoundPlugin extends ParentPlugin {
 	
 	private void registerSpells() {
 		sh.registerSpell(new CalidumDolor(this));
+		sh.registerSpell(new Laedo(this));
 	}
 	
 	private void setUpConfiguration() {
@@ -103,12 +107,23 @@ public abstract class SpellBoundPlugin extends ParentPlugin {
 		config.addDefault("Spells.Offense.CalidumDolor.Damage", 4D);
 		config.addDefault("Spells.Offense.CalidumDolor.Fire", true);
 		config.addDefault("Spells.Offense.CalidumDolor.FireChance", 25);
-		config.addDefault("Spells.Offense.CalidumDolor.SpeedFactor", 1.2D);
+		config.addDefault("Spells.Offense.CalidumDolor.FireTicks", 100);
+		config.addDefault("Spells.Offense.CalidumDolor.Speed", 3.5D);
 		config.addDefault("Spells.Offense.CalidumDolor.Cooldown", 2000L);
 		config.addDefault("Spells.Offense.CalidumDolor.ManaCost", 10D);
 		config.addDefault("Spells.Offense.CalidumDolor.HealthCost", 0D);
-		config.addDefault("Spells.Offense.CalidumDolor.Gravity", -0.25D);
+		config.addDefault("Spells.Offense.CalidumDolor.Gravity", -0.21D);
 		config.addDefault("Spells.Offense.CalidumDolor.Range", 150D);
+		
+		config.addDefault("Spells.Offense.Laedo.Damage", 1D);
+		config.addDefault("Spells.Offense.Laedo.SlowIntensity", 10);
+		config.addDefault("Spells.Offense.Laedo.SlowTime", 3000L);
+		config.addDefault("Spells.Offense.Laedo.Speed", 2D);
+		config.addDefault("Spells.Offense.Laedo.Cooldown", 3000L);
+		config.addDefault("Spells.Offense.Laedo.ManaCost", 10D);
+		config.addDefault("Spells.Offense.Laedo.HealthCost", 0D);
+		config.addDefault("Spells.Offense.Laedo.Gravity", -0.09D);
+		config.addDefault("Spells.Offense.Laedo.Range", 60D);
 		
 		saveConfiguration();
 	}
@@ -136,5 +151,9 @@ public abstract class SpellBoundPlugin extends ParentPlugin {
 
 	public EntityMethods getEntityMethods() {
 		return entityMethods;
+	}
+	
+	public long getDelta() {
+		return updater.getDelta();
 	}
 }

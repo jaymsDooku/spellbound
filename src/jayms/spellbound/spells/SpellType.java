@@ -1,8 +1,19 @@
 package jayms.spellbound.spells;
 
+import java.util.Arrays;
+
 public enum SpellType {
 	
 	OFFENSE("Offense", "OFF", '4'), DEFENSE("Defense", "DEF", '1'), UTILITY("Utility", "UTI", '2');
+	
+	public static String[] SHORTENED = new String[3];
+	
+	static {
+		SpellType[] values = values();
+		for (int i = 0; i < values.length; i++) {
+			SHORTENED[i] = values[i].getShortened();
+		}
+	}
 	
 	private String rep;
 	private String sho;
@@ -39,5 +50,9 @@ public enum SpellType {
 			}
 		}
 		return null;
+	}
+	
+	public static boolean isShortenedName(String s) {
+		return Arrays.asList(SHORTENED).contains(s);
 	}
 }

@@ -1,7 +1,6 @@
 package jayms.spellbound.player;
 
 import java.sql.SQLException;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -19,10 +18,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
 import jayms.plugin.db.Database;
-import jayms.plugin.packet.EntityMethods;
-import jayms.plugin.packet.ExperienceMethods;
 import jayms.plugin.packet.TitleMethods;
 import jayms.spellbound.SpellBoundPlugin;
+import jayms.spellbound.items.wands.JihadStick;
 import jayms.spellbound.items.wands.Wand;
 
 public class SpellBoundPlayerHandler implements Listener {
@@ -242,6 +240,7 @@ public class SpellBoundPlayerHandler implements Listener {
 			inv.setItem(0, wand.getItemStack());
 			inv.setHeldItemSlot(0);
 			sbp.showMana();
+			sbp.getScoreboard().updateAndShow();
 		}else {
 			sbp.setBattleMode(false);
 			sbp.setSlotInside(-1);
@@ -249,6 +248,7 @@ public class SpellBoundPlayerHandler implements Listener {
 			Inventory inv = sbp.getBukkitPlayer().getInventory();
 			inv.setContents(bmtItems);
 			sbp.hideMana();
+			sbp.getScoreboard().hide();
 		}
 		return true;
 	}
@@ -262,7 +262,9 @@ public class SpellBoundPlayerHandler implements Listener {
 	public void onPlayerJoin(PlayerJoinEvent e) {
 		SpellBoundPlayer sbp = getSpellBoundPlayer(e.getPlayer());
 		handleWelcome(sbp);
-		
+		sbp.getScoreboard().updateAndShow();
+		JihadStick jihadStick = new JihadStick(sbPlugin);
+		sbp.getBukkitPlayer().getInventory().setItemInHand(jihadStick.getItemStack());
 	}
 
 	@EventHandler(priority = EventPriority.NORMAL)

@@ -2,9 +2,12 @@ package jayms.spellbound.spells;
 
 import java.util.Set;
 
+import org.bukkit.ChatColor;
 import org.bukkit.event.Listener;
 
 import jayms.plugin.system.description.Version;
+import jayms.plugin.util.ColourableString;
+import jayms.plugin.util.CooldownHandler;
 import jayms.spellbound.player.SpellBoundPlayer;
 
 public interface Spell extends Listener, Comparable<Spell> {
@@ -17,9 +20,9 @@ public interface Spell extends Listener, Comparable<Spell> {
 	
 	String getUniqueName();
 	
-	String getDisplayName();
+	ColourableString getDisplayName();
 	
-	String[] getDescription();
+	ColourableString[] getDescription();
 	
 	Version getVersion();
 	
@@ -35,5 +38,11 @@ public interface Spell extends Listener, Comparable<Spell> {
 	
 	int getPower();
 	
+	ChatColor getPowerColor();
+	
 	Set<SpellBoundPlayer> getUsing();
+	
+	CooldownHandler<SpellBoundPlayer> getCooldowns();
+	
+	SpellType getType();
 }

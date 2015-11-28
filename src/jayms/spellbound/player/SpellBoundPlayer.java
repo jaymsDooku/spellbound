@@ -12,6 +12,7 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 
 import com.mysql.jdbc.Statement;
 
@@ -49,11 +50,14 @@ public class SpellBoundPlayer implements IO {
 	
 	private StopRegenContainer stopRegenHit;
 	private StopRegenContainer stopRegenCast;
+	
+	private SpellBoundPlayerScoreboard scoreboard;
 
 	public SpellBoundPlayer(SpellBoundPlugin running, Player bukkitPlayer) {
 		this.running = running;
 		this.bukkitPlayer = bukkitPlayer;
 		this.binds = new BindingBelt(this.running, this);
+		this.scoreboard = new SpellBoundPlayerScoreboard(running, this);
 		initialize();
 	}
 
@@ -266,6 +270,7 @@ public class SpellBoundPlayer implements IO {
 
 	public void setSlotInside(int slotInside) {
 		this.slotInside = slotInside;
+		getScoreboard().updateAndShow();
 	}
 
 	public Wand getSelectedWand() {
@@ -280,6 +285,16 @@ public class SpellBoundPlayer implements IO {
 	}
 	
 	public boolean assureSelectedWand() {
+		
+		PlayerInventory inv = bukkitPlayer.getInventory();
+		ItemStack it = inv.getItemInHand();
+		
+		if (it != null) {
+			if (Wand.isWand(it)) {
+				setSelectedWand(running.getWandHandler().getWand(it));
+				return true;
+			}
+		}
 		
 		if (hasSelectedWand()) {
 			return true;
@@ -330,6 +345,14 @@ public class SpellBoundPlayer implements IO {
 		}
 		
 		return getWandsWithSlots().get(wand);
+	}
+
+	public SpellBoundPlayerScoreboard getScoreboard() {
+		return scoreboard;
+	}
+
+	public void setScoreboard(SpellBoundPlayerScoreboard scoreboard) {
+		this.scoreboard = scoreboard;
 	}
 
 	public void putSpellData(Spell spell, SpellData data) {
