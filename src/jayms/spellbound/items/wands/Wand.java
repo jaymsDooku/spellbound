@@ -12,13 +12,15 @@ import org.bukkit.Material;
 import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
 import org.bukkit.inventory.ItemStack;
 
+import jayms.plugin.nbt.NBTMethods;
+import jayms.plugin.nbt.NBTTagCompound;
+import jayms.plugin.nbt.NBTTagInt;
+import jayms.plugin.nbt.NBTTagList;
+import jayms.plugin.nbt.NBTTagString;
+import jayms.plugin.nbt.NMSItemStack;
 import jayms.plugin.util.CommonUtil;
 import jayms.spellbound.SpellBoundPlugin;
 import jayms.spellbound.spells.SpellType;
-import net.minecraft.server.v1_8_R3.NBTTagCompound;
-import net.minecraft.server.v1_8_R3.NBTTagInt;
-import net.minecraft.server.v1_8_R3.NBTTagList;
-import net.minecraft.server.v1_8_R3.NBTTagString;
 
 public class Wand implements IWand {
 
@@ -91,7 +93,7 @@ public class Wand implements IWand {
 		}
 		
 		wandName = it.getItemMeta().getDisplayName();
-		net.minecraft.server.v1_8_R3.ItemStack nmsIt = CraftItemStack.asNMSCopy(it);
+		NMSItemStack nmsIt = new NMSItemStack(it);
 		NBTTagCompound root = nmsIt.getTag();
 		uuid = UUID.fromString(root.getString(WAND_ID));
 		SpellType[] values = SpellType.values();
@@ -145,7 +147,7 @@ public class Wand implements IWand {
 		if (it == null) {
 			it = new ItemStack(Material.STICK, 1);
 		}
-		net.minecraft.server.v1_8_R3.ItemStack nmsIt = CraftItemStack.asNMSCopy(it);
+		NMSItemStack nmsIt = new NMSItemStack(it);
 		NBTTagCompound root = nmsIt.hasTag() ? nmsIt.getTag() : new NBTTagCompound();
 		root.set(WAND_ID, new NBTTagString(uuid.toString()));
 		if (!root.hasKey("display")) {
@@ -177,7 +179,7 @@ public class Wand implements IWand {
 		root.set("display", display);
 		nmsIt.setTag(root);
 		
-		it = CraftItemStack.asCraftMirror(nmsIt);
+		it = nmsIt.toItemStack();
 		
 		return it;
 	}
@@ -267,7 +269,7 @@ public class Wand implements IWand {
 			return false;
 		}
 
-		net.minecraft.server.v1_8_R3.ItemStack nmsIt = CraftItemStack.asNMSCopy(it);
+		NMSItemStack nmsIt = new NMSItemStack(it);
 		if (!nmsIt.hasTag()) {
 			return false;
 		}
