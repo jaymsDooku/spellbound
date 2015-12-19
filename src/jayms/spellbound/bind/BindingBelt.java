@@ -1,29 +1,22 @@
 package jayms.spellbound.bind;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.logging.Level;
 
-import com.mysql.jdbc.Statement;
-
-import jayms.plugin.db.Database;
-import jayms.plugin.io.IO;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.sql.Database;
+import jayms.spellbound.Main;
 import jayms.spellbound.player.SpellBoundPlayer;
 import jayms.spellbound.player.SpellBoundPlayerHandler;
 import jayms.spellbound.spells.Spell;
 import jayms.spellbound.spells.SpellHandler;
 
-public class BindingBelt implements IO {
+public class BindingBelt {
 	
-	private final SpellBoundPlugin running;
 	private final SpellBoundPlayer parent;
 	private Spell[][] spells = new Spell[Slot.SLOT_COUNT][Slot.SLOT_COUNT];
 	
-	public BindingBelt(SpellBoundPlugin running, SpellBoundPlayer parent) {
-		this.running = running;
+	public BindingBelt(SpellBoundPlayer parent) {
 		this.parent = parent;
 	}
 	
@@ -52,7 +45,7 @@ public class BindingBelt implements IO {
 	}
 	
 	private void autoSave() {
-		if (running.getConfiguration().getBoolean("Settings.AutoSaveBinds", true)) {
+		if (Main.self.getYAMLFileMCExt().getFC().getBoolean("Settings.AutoSaveBinds", true)) {
 			save();
 		}
 	}
@@ -107,11 +100,10 @@ public class BindingBelt implements IO {
 		}
 	}
 
-	@Override
 	public void load() {
-		Database db = running.getDatabase();
+		Database db = Main.self.getSQL();
 		
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 		
 		for (int i = 0; i < Slot.SLOT_COUNT; i++) {
 			int slot = i+1;
@@ -123,15 +115,15 @@ public class BindingBelt implements IO {
 				try {
 					String sp = rs.getString("BindingSlot" + Integer.toString(subSlot));
 					if (sp != null) {
-						SpellHandler sh = running.getSpellHandler();
+						SpellHandler sh = Main.self.getSpellHandler();
 						Spell sptb = sh.getSpell(sp);
 						bind(slot, subSlot, sptb, true);
-						running.getLogger().log(Level.INFO, "Bound A Spell:\n" 
+						Main.log.log(Level.INFO, "Bound A Spell:\n" 
 						+ "SpellDN: " + sptb.getDisplayName() + "\n"
 						+ "Slot: " + slot + "\n"
 						+ "SubSlot: " + subSlot);
 					}else {
-						running.getLogger().log(Level.INFO, "Spell is null Slot: " + slot + " SubSlot: " + subSlot);
+						Main.log.log(Level.INFO, "Spell is null Slot: " + slot + " SubSlot: " + subSlot);
 					}
 				} catch (SQLException e) {
 					e.printStackTrace();
@@ -140,11 +132,10 @@ public class BindingBelt implements IO {
 		}
 	}
 
-	@Override
 	public void save() {
-		Database db = running.getDatabase();
+		Database db = Main.self.getSQL();
 		
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 		
 		if (!sbph.spellBoundPlayerExistsInDB(parent.getBukkitPlayer().getUniqueId())) {
 			throw new RuntimeException("There is no record to save to!");

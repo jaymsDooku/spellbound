@@ -4,18 +4,3 @@ main: jayms.spellbound.Main
 database: false
 description: "For all your spellbound shizz!"
 author: jayms
-commands:
-  spellbound:
-permissions:
-  spellbound.*:
-    description: Access to everything.
-    children:
-      spellbound.command: true
-    default: op
-  spellbound.command:
-    description: Access to all command-related things.
-    children:
-      spellbound.command.bind: true
-      spellbound.command.display: true
-      spellbound.command.help: true
-      spellbound.command.givewand: true

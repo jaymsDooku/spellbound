@@ -1,6 +1,7 @@
 package jayms.spellbound.spells.offense;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -8,27 +9,29 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.util.Vector;
 
-import jayms.plugin.event.update.UpdateEvent;
-import jayms.plugin.packet.ParticleEffect;
-import jayms.plugin.packet.ParticleEffect.BlockData;
-import jayms.plugin.system.description.Version;
-import jayms.plugin.util.ColourableString;
-import jayms.plugin.util.CommonUtil;
-import jayms.plugin.util.MCUtil;
-import jayms.plugin.util.tuple.Tuple;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.common.Handler;
+import jayms.java.mcpe.common.Version;
+import jayms.java.mcpe.common.collect.Tuple;
+import jayms.java.mcpe.common.util.MCUtil;
+import jayms.java.mcpe.common.util.NumberUtil;
+import jayms.java.mcpe.common.util.ParticleEffect;
+import jayms.java.mcpe.common.util.ParticleEffect.BlockData;
+import jayms.java.mcpe.event.UpdateEvent;
+import jayms.spellbound.Main;
 import jayms.spellbound.player.SpellBoundPlayer;
 import jayms.spellbound.spells.AbstractSpell;
-import jayms.spellbound.spells.CommonSpellVariables;
 import jayms.spellbound.spells.Spell;
 import jayms.spellbound.spells.SpellType;
+import jayms.spellbound.spells.collision.CollisionPriority;
+import jayms.spellbound.spells.collision.CollisionResult;
 import jayms.spellbound.spells.data.CommonData;
+import jayms.spellbound.spells.variables.CommonSpellVariables;
 
 public class CalidumDolor extends AbstractSpell {
 
@@ -46,16 +49,15 @@ public class CalidumDolor extends AbstractSpell {
 
 	private class CalidumDolorData extends CommonData {
 
-		public CalidumDolorData(Spell parent) {
-			super(parent);
+		public CalidumDolorData(UUID user, Spell parent) {
+			super(user, parent);
 		}
 
 	}
 
-	public CalidumDolor(SpellBoundPlugin running) {
-		super(running);
+	public CalidumDolor() {
 		variables = new CalidumDolorSpellVariables();
-		FileConfiguration config = running.getConfiguration();
+		FileConfiguration config = Main.self.getYAMLFileMCExt().getFC();
 		cooldown = config.getLong("Spells.Offense.CalidumDolor.Cooldown");
 		manaCost = config.getDouble("Spells.Offense.CalidumDolor.ManaCost");
 		healthCost = config.getDouble("Spells.Offense.CalidumDolor.HealthCost");
@@ -90,7 +92,7 @@ public class CalidumDolor extends AbstractSpell {
 		data.loc = data.loc.add(data.loc.getDirection().multiply(-1).multiply(1.1).normalize());
 		playSound(data.loc, Sound.EXPLODE, 1f, 50f);
 		ParticleEffect.LAVA.display(data.loc, 0.2f, 0.2f, 0.2f, 0.3f, 12);
-
+		
 		sbPlayer.putSpellData(this, null);
 		sbPlayers.remove(sbPlayer);
 		return true;
@@ -102,42 +104,15 @@ public class CalidumDolor extends AbstractSpell {
 	}
 
 	@Override
-	public ColourableString getDisplayName() {
-		return new ColourableString("CalidumDolor") {
-
-			@Override
-			public String applyColour(ChatColor... extras) {
-				String result = "&4";
-				String format = getFormatFromExtras(extras);
-				if (!format.isEmpty()) {
-					result += format;
-				}
-				result += toString();
-
-				result = ChatColor.translateAlternateColorCodes('&', result);
-
-				return result;
-			}
-
-		};
+	public String getDisplayName() {
+		return ChatColor.translateAlternateColorCodes('&', "&4CalidumDolor");
 	}
 
 	@Override
-	public ColourableString[] getDescription() {
-		return new ColourableString[] { new ColourableString("Have a coal ore in your hot bar to use this spell.") {
-
-			@Override
-			public String applyColour(ChatColor... extras) {
-				return ChatColor.translateAlternateColorCodes('&', "&6" + toString());
-			}
-
-		}, new ColourableString("Click to heat up the coal, and then shoot it forward.") {
-
-			@Override
-			public String applyColour(ChatColor... extras) {
-				return ChatColor.translateAlternateColorCodes('&', "&6" + toString());
-			}
-		} };
+	public String[] getDescription() {
+		return new String[] {
+				ChatColor.translateAlternateColorCodes('&', "&6Have a coal ore in your hot bar to use this spell.")
+				, ChatColor.translateAlternateColorCodes('&', "&6Click to heat up the coal, and then shoot it forward.")};
 	}
 
 	@Override
@@ -171,7 +146,7 @@ public class CalidumDolor extends AbstractSpell {
 			Player player = sbp.getBukkitPlayer();
 			CalidumDolorData data = (CalidumDolorData) sbp.getSpellData(this);
 			if (data == null) {
-				sbp.putSpellData(this, new CalidumDolorData(this));
+				sbp.putSpellData(this, new CalidumDolorData(player.getUniqueId(), this));
 				data = (CalidumDolorData) sbp.getSpellData(this);
 				data.loc = player.getEyeLocation();
 				data.origin = player.getLocation();
@@ -185,10 +160,10 @@ public class CalidumDolor extends AbstractSpell {
 			variables.speedfactor = variables.speed * delta;
 
 			data.velocity = data.velocity.add(data.dir.multiply(variables.speedfactor));
+			data.velocity = applyGravity(data.velocity, variables.gravity, delta);
 
 			Location loc = data.loc;
 			data.loc = loc.add(data.velocity);
-			data.velocity = applyGravity(data.velocity, variables.gravity, delta);
 
 			ParticleEffect.BLOCK_CRACK.display(new BlockData(Material.OBSIDIAN, (byte) 0), 0.2f, 0.2f, 0.2f, 0.04f, 11,
 					data.loc, 257);
@@ -212,20 +187,50 @@ public class CalidumDolor extends AbstractSpell {
 				return;
 			}
 
-			List<Entity> affectedEntities = getAffectedEntities(data.loc, 2, sbp);
+			List<LivingEntity> affectedEntities = getAffectedEntities(data.loc, 2, sbp);
 
 			if (affectedEntities.size() > 0) {
 				Tuple<Boolean, Integer> fire = new Tuple<>(false, 100);
-				if (CommonUtil.hasChance(fireChance)) {
+				if (NumberUtil.hasChance(fireChance)) {
 					fire.setA(true);
 				}
 				damageEntities(affectedEntities, variables.damage, sbp, fire);
 				disable(sbp, true);
 				return;
 			}
-
-			collideSpells(sbp, loc, variables.range, data.uuid);
 		}
+	}
+
+	@Override
+	public CollisionPriority getPriority() {
+		return CollisionPriority.NORMAL;
+	}
+
+	@Override
+	public double getCollisionRange() {
+		return 2;
+	}
+
+	@Override
+	public Handler<Tuple<SpellBoundPlayer, CollisionResult>> getCollisionHandler() {
+		return new Handler<Tuple<SpellBoundPlayer, CollisionResult>>() {
+
+			@Override
+			public void handle(Tuple<SpellBoundPlayer, CollisionResult> ob) {
+				SpellBoundPlayer sbp = ob.getA();
+				CollisionResult result = ob.getB();
+				switch (result) {
+				case DESTROYED:
+					disable(sbp, true);
+					break;
+				case SUCCESS:
+					break;
+				default:
+					break;
+				}
+			}
+			
+		};
 	}
 
 }

@@ -12,14 +12,12 @@ import org.bukkit.Material;
 import org.bukkit.craftbukkit.v1_8_R3.inventory.CraftItemStack;
 import org.bukkit.inventory.ItemStack;
 
-import jayms.plugin.nbt.NBTMethods;
-import jayms.plugin.nbt.NBTTagCompound;
-import jayms.plugin.nbt.NBTTagInt;
-import jayms.plugin.nbt.NBTTagList;
-import jayms.plugin.nbt.NBTTagString;
-import jayms.plugin.nbt.NMSItemStack;
-import jayms.plugin.util.CommonUtil;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.common.util.PatternUtil;
+import jayms.java.mcpe.nbt.CompoundTag;
+import jayms.java.mcpe.nbt.IntTag;
+import jayms.java.mcpe.nbt.ListTag;
+import jayms.java.mcpe.nbt.StringTag;
+import jayms.spellbound.Main;
 import jayms.spellbound.spells.SpellType;
 
 public class Wand implements IWand {
@@ -59,26 +57,22 @@ public class Wand implements IWand {
 		PATH_TO_DISPLAY.put(DMG_PERCENT, DMG_PERCENT);
 		PATH_TO_DISPLAY.put(KNOCKBACK_PERCENT, KNOCKBACK_DISPLAY);
 	}
-
-	private final SpellBoundPlugin running;
 	
 	private String wandName;
 	private UUID uuid;
 	private ItemStack it;
 	private EnumMap<SpellType, Map<String, Integer>> stats = new EnumMap<>(SpellType.class);
 
-	public Wand(SpellBoundPlugin running, String name) {
-		this.running = running;
+	public Wand(String name) {
 		this.uuid = UUID.randomUUID();
 		this.wandName = name;
-		this.running.getWandHandler().registerWand(this);
+		Main.self.getWandHandler().registerWand(this);
 	}
 
-	public Wand(SpellBoundPlugin running, ItemStack it) {
-		this.running = running;
+	public Wand(ItemStack it) {
 		this.it = it;
 		loadStats();
-		this.running.getWandHandler().registerWand(this);
+		Main.self.getWandHandler().registerWand(this);
 	}
 
 	private void loadStats() {
@@ -88,18 +82,18 @@ public class Wand implements IWand {
 		}
 		
 		if (!isWand(it)) {
-			this.running.getLogger().log(Level.SEVERE, "This item is not a wand!");
+			Main.log.log(Level.SEVERE, "This item is not a wand!");
 			return;
 		}
 		
 		wandName = it.getItemMeta().getDisplayName();
-		NMSItemStack nmsIt = new NMSItemStack(it);
-		NBTTagCompound root = nmsIt.getTag();
+		jayms.java.mcpe.nms.ItemStack nmsIt = new jayms.java.mcpe.nms.ItemStack(it);
+		CompoundTag root = nmsIt.getTag();
 		uuid = UUID.fromString(root.getString(WAND_ID));
 		SpellType[] values = SpellType.values();
 		for (int t = 0; t < values.length; t++) {
 			SpellType st =  values[t];
-			NBTTagCompound compound = root.getCompound(st.toString());
+			CompoundTag compound = root.getCompound(st.toString());
 			for (int i = 0; i < VALID_PATHS.length; i++) {
 				String path = VALID_PATHS[i];
 				int compRes = compound.getInt(path);
@@ -147,34 +141,34 @@ public class Wand implements IWand {
 		if (it == null) {
 			it = new ItemStack(Material.STICK, 1);
 		}
-		NMSItemStack nmsIt = new NMSItemStack(it);
-		NBTTagCompound root = nmsIt.hasTag() ? nmsIt.getTag() : new NBTTagCompound();
-		root.set(WAND_ID, new NBTTagString(uuid.toString()));
+		jayms.java.mcpe.nms.ItemStack nmsIt = new jayms.java.mcpe.nms.ItemStack(it);
+		CompoundTag root = nmsIt.hasTag() ? nmsIt.getTag() : new CompoundTag();
+		root.set(WAND_ID, new StringTag(uuid.toString()));
 		if (!root.hasKey("display")) {
-			root.set("display", new NBTTagCompound());
+			root.set("display", new CompoundTag());
 		}
-		NBTTagCompound display = root.getCompound("display");
+		CompoundTag display = root.getCompound("display");
 		display.setString("Name", wandName);
-		NBTTagList lore = new NBTTagList();
+		ListTag lore = new ListTag();
 		SpellType[] values = SpellType.values();
 		for (int t = 0; t < values.length; t++) {
 			SpellType st = values[t];
 			String stTs = st.toString();
 			if (!root.hasKey(stTs)) {
-				root.set(stTs, new NBTTagCompound());
+				root.set(stTs, new CompoundTag());
 			}
-			NBTTagCompound compound = root.getCompound(stTs);
+			CompoundTag compound = root.getCompound(stTs);
 			for (int i = 0; i < VALID_PATHS.length; i++) {
 				String path = VALID_PATHS[i];
 				int perc = getPercentage(st, path);
-				compound.set(path, new NBTTagInt(perc));
+				compound.set(path, new IntTag(perc));
 				if (perc != 0) {
-					lore.add(new NBTTagString(ChatColor.translateAlternateColorCodes('&', "&0(" + st.ampersandCode() + st.getShortened() + "&0)" + st.ampersandCode() + PATH_TO_DISPLAY.get(path) + "&7: &6" + perc + "&7%")));
+					lore.add(new StringTag(ChatColor.translateAlternateColorCodes('&', "&0(" + st.ampersandCode() + st.getShortened() + "&0)" + st.ampersandCode() + PATH_TO_DISPLAY.get(path) + "&7: &6" + perc + "&7%")));
 				}
 			}
 			root.set(st.toString(), compound);
 		}
-		lore.add(new NBTTagString(ChatColor.translateAlternateColorCodes('&', "&cWand ID&7:&6 " + root.getString(WAND_ID))));
+		lore.add(new StringTag(ChatColor.translateAlternateColorCodes('&', "&cWand ID&7:&6 " + root.getString(WAND_ID))));
 		display.set("Lore", lore);
 		root.set("display", display);
 		nmsIt.setTag(root);
@@ -261,7 +255,7 @@ public class Wand implements IWand {
 	
 	@Override
 	public void unregister() {
-		running.getWandHandler().unregisterWand(this);
+		Main.self.getWandHandler().unregisterWand(this);
 	}
 	
 	public static boolean isWand(ItemStack it) {
@@ -269,16 +263,16 @@ public class Wand implements IWand {
 			return false;
 		}
 
-		NMSItemStack nmsIt = new NMSItemStack(it);
+		jayms.java.mcpe.nms.ItemStack nmsIt = new jayms.java.mcpe.nms.ItemStack(it);
 		if (!nmsIt.hasTag()) {
 			return false;
 		}
-		NBTTagCompound root = nmsIt.getTag();
+		CompoundTag root = nmsIt.getTag();
 		if (!root.hasKey(WAND_ID)) {
 			return false;
 		}
 		String wuuid = root.getString(WAND_ID);
-		return CommonUtil.canBeUUID(wuuid);
+		return PatternUtil.canBeUUID(wuuid);
 	}
 	
 	public static UUID extractUUIDFromWandItem(ItemStack it) {
@@ -298,7 +292,7 @@ public class Wand implements IWand {
 			return false;
 		}
 		
-		Wand w = running.getWandHandler().getWand(it);
+		Wand w = Main.self.getWandHandler().getWand(it);
 		return w.getUniqueId().equals(uuid);
 	}
 }

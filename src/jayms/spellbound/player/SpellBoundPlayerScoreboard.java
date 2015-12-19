@@ -7,8 +7,8 @@ import org.bukkit.scoreboard.DisplaySlot;
 import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 
-import jayms.plugin.util.CooldownHandler;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.common.CooldownHandler;
+import jayms.java.mcpe.common.util.ServerUtil;
 import jayms.spellbound.bind.BindingBelt;
 import jayms.spellbound.bind.Slot;
 import jayms.spellbound.spells.Spell;
@@ -22,14 +22,12 @@ public class SpellBoundPlayerScoreboard implements Listener {
 	private static final String MAIN_SLOT = ChatColor.RED + "Main Slot ";
 	private static final String COLON = ChatColor.DARK_RED + ": ";
 
-	private SpellBoundPlugin running;
 	private SpellBoundPlayer sbp;
 	private Scoreboard scoreboard;
 	private Objective sideBarObj;
 	private Objective healthObj;
 
-	public SpellBoundPlayerScoreboard(SpellBoundPlugin running, SpellBoundPlayer sbp) {
-		this.running = running;
+	public SpellBoundPlayerScoreboard(SpellBoundPlayer sbp) {
 		this.sbp = sbp;
 		this.sbp.setScoreboard(this);
 	}
@@ -39,7 +37,7 @@ public class SpellBoundPlayerScoreboard implements Listener {
 	}
 
 	public void hide() {
-		sbp.getBukkitPlayer().setScoreboard(running.getSelf().getServer().getScoreboardManager().getNewScoreboard());
+		sbp.getBukkitPlayer().setScoreboard(ServerUtil.getServer().getScoreboardManager().getNewScoreboard());
 	}
 
 	public void updateBoard() {
@@ -47,7 +45,7 @@ public class SpellBoundPlayerScoreboard implements Listener {
 		Player player = sbp.getBukkitPlayer(); 
 		player.setHealth(player.getHealth());
 		
-		scoreboard = running.getSelf().getServer().getScoreboardManager().getNewScoreboard();
+		scoreboard = ServerUtil.getServer().getScoreboardManager().getNewScoreboard();
 		sideBarObj = scoreboard.registerNewObjective("main", "dummy");
 		sideBarObj.setDisplaySlot(DisplaySlot.SIDEBAR);
 		sideBarObj.setDisplayName(ChatColor.DARK_RED + "--- " + ChatColor.RED + ChatColor.UNDERLINE + "SpellBoard"

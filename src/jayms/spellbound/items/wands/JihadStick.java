@@ -1,12 +1,11 @@
 package jayms.spellbound.items.wands;
 
-import jayms.spellbound.SpellBoundPlugin;
 import jayms.spellbound.spells.SpellType;
 
 public class JihadStick extends Wand {
 
-	public JihadStick(SpellBoundPlugin running) {
-		super(running, "JihadStick");
+	public JihadStick() {
+		super("JihadStick");
 		setManaPercentage(SpellType.OFFENSE, 25);
 		setHealthPercentage(SpellType.OFFENSE, 20);
 		setHealthPercentage(SpellType.DEFENSE, 10);

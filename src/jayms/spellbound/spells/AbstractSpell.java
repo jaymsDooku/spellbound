@@ -12,22 +12,20 @@ import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
-import jayms.plugin.event.EventDispatcher;
-import jayms.plugin.util.CommonUtil;
-import jayms.plugin.util.CooldownHandler;
-import jayms.plugin.util.MCUtil;
-import jayms.plugin.util.tuple.Tuple;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.common.CooldownHandler;
+import jayms.java.mcpe.common.collect.Tuple;
+import jayms.java.mcpe.common.util.MCUtil;
+import jayms.java.mcpe.common.util.NumberUtil;
+import jayms.java.mcpe.event.EventDispatcher;
+import jayms.spellbound.Main;
 import jayms.spellbound.event.CastSpellEvent;
 import jayms.spellbound.items.wands.Wand;
 import jayms.spellbound.player.SpellBoundPlayer;
-import jayms.spellbound.spells.data.CommonData;
 
 public abstract class AbstractSpell implements Spell {
-
-	protected final SpellBoundPlugin running;
 
 	protected EventDispatcher eventDispatcher;
 	protected Set<SpellBoundPlayer> sbPlayers = new HashSet<>();
@@ -36,10 +34,12 @@ public abstract class AbstractSpell implements Spell {
 	protected double manaCost;
 	protected double healthCost;
 	protected int power = 0;
+	
+	private HashMap<UUID, Double> manaCache = new HashMap<>(); 
+	private HashMap<UUID, Double> healthCache = new HashMap<>();
 
-	protected AbstractSpell(SpellBoundPlugin running) {
-		this.running = running;
-		this.eventDispatcher = this.running.getEventDispatcher();
+	protected AbstractSpell() {
+		this.eventDispatcher = Main.self.getEventDispatcher();
 		this.cooldownHandler = new CooldownHandler<>(eventDispatcher);
 		initEventDispatcher();
 	}
@@ -57,6 +57,7 @@ public abstract class AbstractSpell implements Spell {
 			return false;
 		}
 		sbPlayer.setMana(setMana);
+		manaCache.put(sbPlayer.getBukkitPlayer().getUniqueId(), manaCost);
 		return true;
 	}
 
@@ -68,38 +69,49 @@ public abstract class AbstractSpell implements Spell {
 			return false;
 		}
 		sbPlayer.getBukkitPlayer().setHealth(setHealth);
+		healthCache.put(sbPlayer.getBukkitPlayer().getUniqueId(), healthCost);
 		return true;
+	}
+	
+	protected final boolean refundManaCost(SpellBoundPlayer sbPlayer) {
+		UUID uuid = sbPlayer.getBukkitPlayer().getUniqueId();
+		if (manaCache.containsKey(uuid)) {
+			double mana = manaCache.remove(uuid);
+			double setMana = sbPlayer.getMana() + mana;
+			if (setMana > sbPlayer.getMaxMana()) {
+				setMana = sbPlayer.getMaxMana();
+			}
+			sbPlayer.setMana(setMana);
+			return true;
+		}
+		return false;
+	}
+	
+	protected final boolean refundHealthCost(SpellBoundPlayer sbPlayer) {
+		UUID uuid = sbPlayer.getBukkitPlayer().getUniqueId();
+		if (healthCache.containsKey(uuid)) {
+			double health = healthCache.remove(uuid);
+			double setHealth = sbPlayer.getBukkitPlayer().getHealth() + health;
+			if (setHealth > sbPlayer.getBukkitPlayer().getMaxHealth()) {
+				setHealth = sbPlayer.getBukkitPlayer().getMaxHealth();
+			}
+			sbPlayer.setMana(setHealth);
+			return true;
+		}
+		return false;
+	}
+	
+	protected final void clearCostCaches(SpellBoundPlayer sbPlayer) {
+		if (manaCache.containsKey(sbPlayer.getBukkitPlayer().getUniqueId())) {
+			manaCache.remove(sbPlayer.getBukkitPlayer().getUniqueId());
+		}
+		if (healthCache.containsKey(sbPlayer.getBukkitPlayer().getUniqueId())) {
+			healthCache.remove(sbPlayer.getBukkitPlayer().getUniqueId());
+		}
 	}
 	
 	protected final void playSound(Location loc, Sound sound, float vol, float pit) {
 		MCUtil.playSound(loc, sound, vol, pit);
-	}
-	
-	protected final void collideSpells(SpellBoundPlayer sbp, Location loc, double range, UUID... except) {
-		
-		List<Tuple<Spell, SpellBoundPlayer>> spells = running.getSpellHandler().getSpellAroundPoint(loc, range, except);
-		
-		if (!spells.isEmpty()) {
-			for (Tuple<Spell, SpellBoundPlayer> spellTuple : spells) {
-				SpellBoundPlayer spellSbp = spellTuple.getB();
-				Spell spell  = spellTuple.getA();
-				int compare = compareTo(spell);
-				switch (compare) {
-				case 1:
-					disable(sbp, true);
-					break;
-				case 0:
-					disable(sbp, true);
-					spell.disable(spellSbp, true);
-					break;
-				case -1:
-					spell.disable(spellSbp, true);
-					break;
-				default:
-					break;
-				}
-			}
-		}
 	}
 	
 	protected final void applyCooldown(SpellBoundPlayer sbPlayer) {
@@ -116,7 +128,7 @@ public abstract class AbstractSpell implements Spell {
 	}
 	
 	protected final double percentageIncrease(double first, int percent) {
-		return CommonUtil.percentageIncrease(first, percent);
+		return NumberUtil.percentageIncrease(first, percent);
 	}
 	
 	protected final Map<String, Integer> extractPercentagesFromWand(SpellBoundPlayer sbp) {
@@ -164,29 +176,31 @@ public abstract class AbstractSpell implements Spell {
 	}
 	
 	protected final double extractDelta() {
-		return (double) running.getDelta() / 230;
+		return (double) Main.self.getUpdater().getDelta() / 230;
 	}
 	
-	protected final List<Entity> getAffectedEntities(Location loc, double range, SpellBoundPlayer sbp) {
-		SpellListener listener = running.getSpellHandler().getListener();
-		Set<Entity> holograms = listener.getHologramEntitys();
-
-		return MCUtil.getEntities(loc, range, CommonUtil.addArrays(new Entity[] { sbp.getBukkitPlayer() }, CommonUtil.toArray(holograms, Entity.class), Entity.class));
+	protected final List<LivingEntity> getAffectedEntities(Location loc, double range, SpellBoundPlayer sbp) {
+		return MCUtil.getLivingEntities(loc, range, sbp.getBukkitPlayer());
 	}
 	
-	protected final void damageEntities(List<Entity> affected, double damage, SpellBoundPlayer sbp, Tuple<Boolean, Integer> fire) {
-		List<LivingEntity> livingAE = MCUtil.getLivingEntitiesFromEntities(affected);
-		LivingEntity[] livingAEArray = livingAE.toArray(new LivingEntity[livingAE.size()]);
-		MCUtil.damageEntities(damage, sbp.getBukkitPlayer(), livingAEArray);
-		if (fire.getA()) {
-			MCUtil.setFire(fire.getB(), livingAEArray);
+	protected final void damageEntities(List<LivingEntity> affected, double damage, SpellBoundPlayer sbp, Tuple<Boolean, Integer> fire) {
+		MCUtil.damageEntities(damage, sbp.getBukkitPlayer(), affected.toArray(new LivingEntity[affected.size()]));
+		if (fire != null) {
+			if (fire.getA()) {
+				MCUtil.setFire(fire.getB(), affected.toArray(new LivingEntity[affected.size()]));
+			}
 		}
+	}
+	
+	protected final void givePotionEffect(PotionEffectType effect, int duration, int amplifier, boolean ambient, boolean particles, List<Entity> affected) {
+		List<LivingEntity> le = MCUtil.getLivingEntitiesFromEntities(affected);
+		MCUtil.givePotionEffect(effect, duration, amplifier, ambient, particles, le.toArray(new LivingEntity[le.size()]));
 	}
 	
 	@Override
 	public boolean enable(SpellBoundPlayer sbPlayer) {
 		if (cooldownHandler.isOnCooldown(sbPlayer)) {
-			sbPlayer.getBukkitPlayer().sendMessage(ChatColor.DARK_RED + getDisplayName().applyColour() + " is on cooldown! Time Left: " + ((float) cooldownHandler.timeLeft(sbPlayer) / 1000) + " Seconds");
+			sbPlayer.getBukkitPlayer().sendMessage(ChatColor.DARK_RED + getDisplayName() + " is on cooldown! Time Left: " + ((float) cooldownHandler.timeLeft(sbPlayer) / 1000) + " Seconds");
 			return false;
 		}
 		if (!applyManaCost(sbPlayer)) {
@@ -203,6 +217,12 @@ public abstract class AbstractSpell implements Spell {
 		eventDispatcher.callEvent(event);
 		
 		return !event.isCancelled();
+	}
+	
+	@Override
+	public boolean disable(SpellBoundPlayer sbPlayer, boolean effects) {
+		clearCostCaches(sbPlayer);
+		return true;
 	}
 
 	@Override

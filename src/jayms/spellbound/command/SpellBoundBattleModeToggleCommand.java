@@ -1,21 +1,17 @@
 package jayms.spellbound.command;
 
 import org.bukkit.ChatColor;
-import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
-import jayms.plugin.system.description.Version;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.common.Version;
+import jayms.spellbound.Main;
 import jayms.spellbound.player.SpellBoundPlayer;
 import jayms.spellbound.player.SpellBoundPlayerHandler;
 import jayms.spellbound.util.Permissions;
 
 public class SpellBoundBattleModeToggleCommand extends AbstractSpellBoundCommand {
 	
-	public SpellBoundBattleModeToggleCommand(SpellBoundPlugin running) {
-		super("battlemodetoggle", running);
-		setAlias(new String[] {"bmt"});
-		setDescription(new String[] {"SpellBound Battle Mode Toggle Command."});
-		setFormat("[no args]");
+	public SpellBoundBattleModeToggleCommand() {
 	}
 
 	@Override
@@ -24,30 +20,65 @@ public class SpellBoundBattleModeToggleCommand extends AbstractSpellBoundCommand
 	}
 	
 	@Override
-	public boolean onCommand(CommandSender sender, org.bukkit.command.Command cmd, String label, String[] args) {
+	public void onCommand(Player sender, String[] args) {
 		
 		if (!sender.hasPermission(Permissions.SPELLBOUND_COMMAND_BATTLEMODE)) {
 			sender.sendMessage(ChatColor.DARK_RED + "You don't have enough permissions!");
-			return true;
+			return;
 		}
 		
 		SpellBoundPlayer sbp = extractSBP(sender);
 		
 		if (sbp == null) {
 			sender.sendMessage(ChatColor.DARK_RED + "You cannot run this command!");
-			return true;
+			return;
 		}
 		
 		if (args.length != 0) {
 			sender.sendMessage(ChatColor.DARK_RED + "Not enough arguments!");
-			return false;
+			return;
 		}
 		
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 		
 		if (!sbph.toggleBattleMode(sbp)) {
 			sender.sendMessage(ChatColor.DARK_RED + "You've failed the requirements to toggle battlemode!");
 		}
-		return true;
+		return;
+	}
+
+	@Override
+	public String[] getAlias() {
+		return new String[] {
+				"bmt"
+		};
+	}
+
+	@Override
+	public String[] getDescription() {
+		return new String[] {
+				"SpellBound Battle Mode Toggle Command."
+		};
+	}
+
+	@Override
+	public String getFormat() {
+		return "[no args]";
+	}
+
+	@Override
+	public String[] getHelp() {
+		return new String[] {
+		};
+	}
+
+	@Override
+	public String getName() {
+		return "battlemodetoggle";
+	}
+
+	@Override
+	public int requiredArgs() {
+		return 0;
 	}
 }

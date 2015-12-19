@@ -1,54 +1,64 @@
 package jayms.spellbound.spells.offense;
 
+import java.util.List;
+import java.util.UUID;
+
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Sound;
-import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
-import jayms.plugin.event.update.UpdateEvent;
-import jayms.plugin.packet.ParticleEffect;
-import jayms.plugin.system.description.Version;
-import jayms.plugin.util.ColourableString;
-import jayms.plugin.util.MCUtil;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.common.Handler;
+import jayms.java.mcpe.common.Version;
+import jayms.java.mcpe.common.collect.Tuple;
+import jayms.java.mcpe.common.util.MCUtil;
+import jayms.java.mcpe.common.util.ParticleEffect;
+import jayms.java.mcpe.common.util.VectorUtils;
+import jayms.java.mcpe.event.UpdateEvent;
+import jayms.spellbound.Main;
 import jayms.spellbound.player.SpellBoundPlayer;
 import jayms.spellbound.spells.AbstractSpell;
-import jayms.spellbound.spells.CommonSpellVariables;
 import jayms.spellbound.spells.Spell;
 import jayms.spellbound.spells.SpellType;
-import jayms.spellbound.spells.data.CommonData;
+import jayms.spellbound.spells.collision.CollisionPriority;
+import jayms.spellbound.spells.collision.CollisionResult;
+import jayms.spellbound.spells.data.SpellData;
+import jayms.spellbound.spells.data.TimeAffectedData;
+import jayms.spellbound.spells.variables.CommonSpellVariables;
 
 public class Laedo extends AbstractSpell {
-	
+
 	private LaedoSpellVariables variables;
-	
+
 	private class LaedoSpellVariables extends CommonSpellVariables {
-		
-		public int slowIntensity;
-		public long slowTime;
+
+		public long duration;
 		
 		public LaedoSpellVariables() {
-			
 		}
 	}
-	
-	private class LaedoData extends CommonData {
-		
-		public LaedoData(Spell parent) {
-			super(parent);
+
+	private class LaedoData extends TimeAffectedData {
+
+		public int point;
+
+		public LaedoData(UUID user, Spell parent) {
+			super(user, parent);
 		}
 	}
-		
-	public Laedo(SpellBoundPlugin running) {
-		super(running);
+
+	public Laedo() {
 		variables = new LaedoSpellVariables();
-		FileConfiguration config = running.getConfiguration();
+		FileConfiguration config = Main.self.getYAMLFileMCExt().getFC();
 		cooldown = config.getLong("Spells.Offense.Laedo.Cooldown");
 		manaCost = config.getDouble("Spells.Offense.Laedo.ManaCost");
 		healthCost = config.getDouble("Spells.Offense.Laedo.HealthCost");
@@ -56,8 +66,7 @@ public class Laedo extends AbstractSpell {
 		variables.range = config.getDouble("Spells.Offense.Laedo.Range");
 		variables.damage = config.getDouble("Spells.Offense.Laedo.Damage");
 		variables.speed = config.getDouble("Spells.Offense.Laedo.Speed");
-		variables.slowIntensity = config.getInt("Spells.Offense.Laedo.SlowIntensity");
-		variables.slowTime = config.getLong("Spells.Offense.Laedo.SlowTime");
+		variables.duration = config.getLong("Spells.Offense.Laedo.Duration");
 		power = toPower(variables.damage);
 	}
 
@@ -70,13 +79,13 @@ public class Laedo extends AbstractSpell {
 		returnToMainSlots(sbPlayer);
 		return sbPlayers.add(sbPlayer);
 	}
-	
+
 	@Override
 	public boolean disable(SpellBoundPlayer sbPlayer, boolean effects) {
 		if (!hasEnabled(sbPlayer)) {
 			return false;
 		}
-		
+
 		sbPlayer.putSpellData(this, null);
 		sbPlayers.remove(sbPlayer);
 		return true;
@@ -88,29 +97,13 @@ public class Laedo extends AbstractSpell {
 	}
 
 	@Override
-	public ColourableString getDisplayName() {
-		return new ColourableString("Laedo") {
-
-			@Override
-			public String applyColour(ChatColor... extras) {
-				String result = "&4";
-				String format = getFormatFromExtras(extras);
-				if (!format.isEmpty()) {
-					result += format;
-				}
-				result += toString();
-				
-				result = ChatColor.translateAlternateColorCodes('&', result);
-				
-				return result;
-			}
-			
-		};
+	public String getDisplayName() {
+		return ChatColor.translateAlternateColorCodes('&', "&4Laedo");
 	}
 
 	@Override
-	public ColourableString[] getDescription() {
-		return new ColourableString[]{};
+	public String[] getDescription() {
+		return new String[] {};
 	}
 
 	@Override
@@ -137,17 +130,14 @@ public class Laedo extends AbstractSpell {
 	public SpellType getType() {
 		return SpellType.OFFENSE;
 	}
-	
-	//private double u = -Math.PI/2;
-	//private double v = 0;
-	
+
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onUpdate(UpdateEvent e) {
 		for (SpellBoundPlayer sbp : sbPlayers) {
 			Player player = sbp.getBukkitPlayer();
 			LaedoData data = (LaedoData) sbp.getSpellData(this);
 			if (data == null) {
-				sbp.putSpellData(this, new LaedoData(this));
+				sbp.putSpellData(this, new LaedoData(player.getUniqueId(), this));
 				data = (LaedoData) sbp.getSpellData(this);
 				data.loc = player.getEyeLocation();
 				data.origin = player.getLocation();
@@ -155,42 +145,47 @@ public class Laedo extends AbstractSpell {
 				data.dir = player.getEyeLocation().getDirection();
 				data.velocity = new Vector();
 			}
+			
+			if (data.timeData.has("paralyse")) {
+				return;
+			}
 
 			double delta = extractDelta();
 
 			variables.speedfactor = variables.speed * delta;
 
 			data.velocity = data.velocity.add(data.dir.multiply(variables.speedfactor));
-
-			Location loc = data.loc;
-			data.loc = loc.add(data.velocity);
 			data.velocity = applyGravity(data.velocity, variables.gravity, delta);
 			
-			Location tempLoc = loc.clone();
+			Location loc = data.loc;
+			data.loc = loc.add(data.velocity);
+
+			final Location tempLoc = data.loc.clone();
+			final Vector tempDir = data.dir.clone();
 			
-			World w = tempLoc.getWorld();
-			Vector origin = tempLoc.toVector();
-			Vector originDir = tempLoc.getDirection();
-			
-			double forward = 2;
-			double lengths = 1.5;
-			
-			Vector pointA = new Vector();
-			Vector pointB = new Vector();
-			Vector pointC = new Vector();
-			Vector forwardPoint = origin.add(originDir.multiply(forward));
-			
-			pointA = origin.add(new Vector(0, (Math.sqrt(3)/2) * lengths, 0));
-			pointB = origin.add(new Vector(lengths/2, -(Math.sqrt(3)/2) * lengths, 0));
-			pointC = origin.add(new Vector(0, 0, -lengths/2));
-			
-			line(w, pointA, pointB);
-			line(w, pointB, pointC);
-			line(w, pointA, pointC);
-			line(w, forwardPoint, pointA);
-			line(w, forwardPoint, pointB);
-			line(w, forwardPoint, pointC);
-			
+			for (int i = 0; i < 2; i++) {
+				for (double d = -4.0D; d <= 0.0D; d += 0.1D) {
+					if (data.origin.distance(data.loc) >= d) {
+						Location l = tempLoc.clone().add(tempDir.clone().normalize().multiply(d));
+						double r = d * -1.0D / 5.0D;
+						if (r > 0.75D) {
+							r = 0.75D;
+						}
+						Vector ov = VectorUtils.getOrthogonalVector(data.loc.getDirection(), data.point + 90 * i + d, r);
+						Location pl = l.clone().add(ov);
+						if (i == 0) {
+							ParticleEffect.FIREWORKS_SPARK.display(pl, 0, 0, 0, 0, 1);
+						}else if (i == 1) {
+							ParticleEffect.SPELL_WITCH.display(pl, 0, 0, 0, 0, 1);
+						}
+					}
+				}
+			}
+			data.point = data.point + 20;
+			if (data.point >= 360) {
+				data.point = 0;
+			}
+
 			if (!sbp.getBukkitPlayer().isOnline()) {
 				disable(sbp, false);
 				return;
@@ -200,43 +195,154 @@ public class Laedo extends AbstractSpell {
 				disable(sbp, true);
 				return;
 			}
-			
+
 			Block block = data.loc.getBlock();
 
 			if (MCUtil.isSolid(block) || block.isLiquid()) {
 				disable(sbp, true);
 				return;
 			}
+			
+			List<LivingEntity> affectedEntities = getAffectedEntities(data.loc, 2, sbp);
+
+			if (affectedEntities.size() > 0) {
+				//damageEntities(affectedEntities, variables.damage, sbp, null);
+				data.affected = affectedEntities;
+				for (Entity en : affectedEntities) {
+					Location len = en.getLocation();
+					int iter = 1;
+					int point = 0;
+					double radius = 0.9;
+					for (double y = 0.2; y < 2; y+= 0.2) {
+						iter++;
+						if (point >= 360) {
+							point = 0;
+						}
+						point+=20;
+						ParticleEffect teffect = null;
+						if (iter % 2 == 0) {
+							teffect = ParticleEffect.FIREWORKS_SPARK; 
+						}else {
+							teffect = ParticleEffect.CRIT_MAGIC;
+						}
+						ParticleEffect effect = teffect;
+						int finPoint = point;
+						double finY = y;
+						new BukkitRunnable() {
+							
+							int point = finPoint;
+							double y = finY;
+							
+							@Override
+							public void run() {
+								for (int i = -180; i < 180; i+= 2) {
+									double angle = i * 3.141592653589793D / 180.0D;
+									double x = radius * Math.cos(angle + point);
+									double z = radius * Math.sin(angle + point);
+									Vector vec = new Vector(x, y, z);
+									len.add(vec);
+									effect.display(len, 0, 0, 0, 0, 1);
+									len.subtract(vec);
+								}
+							}
+						}.runTaskLater(Main.self, (long) iter);
+					}
+					point = 360;
+					for (double y = 2; y > 0.2; y-= 0.2) {
+						iter++;
+						if (point <= 360) {
+							point = 360;
+						}
+						point-=20;
+						ParticleEffect teffect = null;
+						if (iter % 2 == 0) {
+							teffect = ParticleEffect.FIREWORKS_SPARK; 
+						}else {
+							teffect = ParticleEffect.CRIT_MAGIC;
+						}
+						ParticleEffect effect = teffect;
+						int finPoint = point;
+						double finY = y;
+						new BukkitRunnable() {
+							
+							int point = finPoint;
+							double y = finY;
+							
+							@Override
+							public void run() {
+								for (int i = -180; i < 180; i+= 2) {
+									double angle = i * 3.141592653589793D / 180.0D;
+									double x = radius * Math.cos(angle + point);
+									double z = radius * Math.sin(angle + point);
+									Vector vec = new Vector(x, y, z);
+									len.add(vec);
+									effect.display(len, 0, 0, 0, 0, 1);
+									len.subtract(vec);
+								}
+							}
+						}.runTaskLater(Main.self, (long) iter);
+					}
+				}
+				if (!data.timeData.has("paralyse")) {
+					data.timeData.put("paralyse", System.currentTimeMillis() + variables.duration);
+				}
+				return;
+			}
 		}
 	}
 	
-	private void line(World w, Vector h, Vector t) {
-		
-		Vector here = h.clone();
-		Vector there = t.clone();
-		
-		double dist = here.distance(there);
-		
-		double here_x = here.getX();
-		double here_y = here.getY();
-		double here_z = here.getZ();
-		
-		double there_x = there.getX();
-		double there_y = there.getY();
-		double there_z = there.getZ();
-		
-		double delta_x = there_x - here_x;
-		double delta_y = there_y - here_y;
-		double delta_z = there_z - here_z;
-		
-		double new_x = here_x;
-		double new_y = here_y;
-		double new_z = here_z;
-		while (dist > 0) {
-			ParticleEffect.FLAME.display(new Location(w, new_x, new_y, new_z), 0, 0, 0, 0, 1);
-			new_x = new_x + delta_x;
-			new_y = new_y + delta_y;
-			new_z = new_z + delta_z;
+	@EventHandler(priority = EventPriority.NORMAL)
+	public void onMove(PlayerMoveEvent e) {
+		Player p = e.getPlayer();
+		for (SpellBoundPlayer sbp : sbPlayers) {
+			SpellData data = sbp.getSpellData(this);
+			if (data != null) {
+				LaedoData ldata = (LaedoData) data;
+				List<LivingEntity> living = ldata.affected;
+				if (living != null) {
+					for (LivingEntity le : living) {
+						if (p.getUniqueId().equals(le.getUniqueId())) {
+							e.setCancelled(true);
+							if (ldata.timeData.get("paralyse") < System.currentTimeMillis()) {
+								disable(sbp, true);
+							}
+						}
+					}
+				}
+			}
 		}
 	}
+
+	@Override
+	public CollisionPriority getPriority() {
+		return CollisionPriority.NORMAL;
+	}
+
+	@Override
+	public double getCollisionRange() {
+		return 1.8;
+	}
+
+	@Override
+	public Handler<Tuple<SpellBoundPlayer, CollisionResult>> getCollisionHandler() {
+		return new Handler<Tuple<SpellBoundPlayer, CollisionResult>>() {
+
+			@Override
+			public void handle(Tuple<SpellBoundPlayer, CollisionResult> ob) {
+				SpellBoundPlayer sbp = ob.getA();
+				CollisionResult result = ob.getB();
+				switch (result) {
+				case DESTROYED:
+					disable(sbp, true);
+					break;
+				case SUCCESS:
+					break;
+				default:
+					break;
+				}
+			}
+			
+		};
+	}
 }
+

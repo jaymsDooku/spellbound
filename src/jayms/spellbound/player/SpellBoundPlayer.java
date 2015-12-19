@@ -16,11 +16,10 @@ import org.bukkit.inventory.PlayerInventory;
 
 import com.mysql.jdbc.Statement;
 
-import jayms.plugin.db.Database;
-import jayms.plugin.event.EventDispatcher;
-import jayms.plugin.io.IO;
-import jayms.plugin.packet.ExperienceMethods;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.common.util.PacketUtil;
+import jayms.java.mcpe.event.EventDispatcher;
+import jayms.java.mcpe.sql.Database;
+import jayms.spellbound.Main;
 import jayms.spellbound.bind.BindingBelt;
 import jayms.spellbound.bind.Slot;
 import jayms.spellbound.event.AfterManaChangeEvent;
@@ -29,9 +28,8 @@ import jayms.spellbound.items.wands.Wand;
 import jayms.spellbound.spells.Spell;
 import jayms.spellbound.spells.data.SpellData;
 
-public class SpellBoundPlayer implements IO {
+public class SpellBoundPlayer {
 
-	private final SpellBoundPlugin running;
 	private final Player bukkitPlayer;
 
 	private BindingBelt binds;
@@ -53,16 +51,15 @@ public class SpellBoundPlayer implements IO {
 	
 	private SpellBoundPlayerScoreboard scoreboard;
 
-	public SpellBoundPlayer(SpellBoundPlugin running, Player bukkitPlayer) {
-		this.running = running;
+	public SpellBoundPlayer(Player bukkitPlayer) {
 		this.bukkitPlayer = bukkitPlayer;
-		this.binds = new BindingBelt(this.running, this);
-		this.scoreboard = new SpellBoundPlayerScoreboard(running, this);
+		this.binds = new BindingBelt(this);
+		this.scoreboard = new SpellBoundPlayerScoreboard(this);
 		initialize();
 	}
 
 	private void initialize() {
-		FileConfiguration config = running.getConfiguration();
+		FileConfiguration config = Main.self.getYAMLFileMCExt().getFC();
 		this.maxMana = config.getDouble("SpellBoundPlayerDefaults.maxMana");
 		this.mana = config.getDouble("SpellBoundPlayerDefaults.mana");
 		this.manaRegen = config.getDouble("SpellBoundPlayerDefaults.manaRegen.rate");
@@ -75,11 +72,10 @@ public class SpellBoundPlayer implements IO {
 		stopRegenCast.setReturnRegenAfterTime(config.getLong("Settings.ReturnRegenAfterCast"));
 	}
 
-	@Override
 	public void load() {
-		Database db = running.getDatabase();
+		Database db = Main.self.getSQL();
 		
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 		
 		checkForSQLRecord();
 		
@@ -100,11 +96,10 @@ public class SpellBoundPlayer implements IO {
 		binds.load();
 	}
 
-	@Override
 	public void save() {
-		Database db = running.getDatabase();
+		Database db = Main.self.getSQL();
 
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 
 		int[] slotIds = new int[Slot.SLOT_COUNT];
 		
@@ -154,9 +149,9 @@ public class SpellBoundPlayer implements IO {
 			throw new IllegalArgumentException("Slot exceeds limits!");
 		}
 		
-		Database db = running.getDatabase();
+		Database db = Main.self.getSQL();
 		
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 		
 		checkForSQLRecord();
 		
@@ -176,7 +171,7 @@ public class SpellBoundPlayer implements IO {
 	
 	public void checkForSQLRecord() {
 		
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 	
 		if (!sbph.spellBoundPlayerExistsInDB(bukkitPlayer.getUniqueId())) {
 			throw new RuntimeException("Player doesn't have a record to load from!");
@@ -211,7 +206,7 @@ public class SpellBoundPlayer implements IO {
 
 	public void setMana(double mana) {
 
-		EventDispatcher ed = running.getEventDispatcher();
+		EventDispatcher ed = Main.self.getEventDispatcher();
 		
 		ManaChangeEvent event = new ManaChangeEvent(this, mana);
 
@@ -291,7 +286,7 @@ public class SpellBoundPlayer implements IO {
 		
 		if (it != null) {
 			if (Wand.isWand(it)) {
-				setSelectedWand(running.getWandHandler().getWand(it));
+				setSelectedWand(Main.self.getWandHandler().getWand(it));
 				return true;
 			}
 		}
@@ -319,7 +314,7 @@ public class SpellBoundPlayer implements IO {
 			ItemStack it = contents[i];
 			if (it == null) continue;
 			if (Wand.isWand(it)) {
-				result.put(running.getWandHandler().getWand(it), i);
+				result.put(Main.self.getWandHandler().getWand(it), i);
 			}
 		}
 		
@@ -380,11 +375,11 @@ public class SpellBoundPlayer implements IO {
 		
 		float perc = (float) (mana / maxMana);
 		
-		ExperienceMethods.sendExperience(perc, 0, (int) mana, bukkitPlayer);
+		PacketUtil.sendExperience(perc, 0, (int) mana, bukkitPlayer);
 	}
 	
 	public void hideMana() {
-		ExperienceMethods.sendExperience(bukkitPlayer.getExp(), bukkitPlayer.getLevel(), bukkitPlayer.getTotalExperience(), bukkitPlayer);
+		PacketUtil.sendExperience(bukkitPlayer.getExp(), bukkitPlayer.getLevel(), bukkitPlayer.getTotalExperience(), bukkitPlayer);
 	}
 	
 	public void regenerateMana() {

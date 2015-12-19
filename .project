@@ -14,11 +14,4 @@
 	<natures>
 		<nature>org.eclipse.jdt.core.javanature</nature>
 	</natures>
-	<linkedResources>
-		<link>
-			<name>PluginEnterprise</name>
-			<type>2</type>
-			<location>C:/Users/james.CEX-PC/Documents/UpdatedWorkspace/PluginEnterprise/src</location>
-		</link>
-	</linkedResources>
 </projectDescription>

@@ -20,12 +20,12 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import de.inventivegames.hologram.Hologram;
 import de.inventivegames.hologram.HologramAPI;
-import jayms.plugin.event.CooldownChangeEvent;
-import jayms.plugin.event.update.UpdateEvent;
-import jayms.plugin.packet.chat.ChatHandler;
-import jayms.plugin.util.CooldownHandler;
-import jayms.plugin.util.MCUtil;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.common.CooldownChangeEvent;
+import jayms.java.mcpe.common.CooldownHandler;
+import jayms.java.mcpe.common.util.MCUtil;
+import jayms.java.mcpe.common.util.PacketUtil;
+import jayms.java.mcpe.event.UpdateEvent;
+import jayms.spellbound.Main;
 import jayms.spellbound.event.AfterManaChangeEvent;
 import jayms.spellbound.event.CastSpellEvent;
 import jayms.spellbound.event.ManaChangeEvent;
@@ -35,17 +35,15 @@ import jayms.spellbound.player.SpellBoundPlayerHandler;
 
 public class SpellListener implements Listener {
 
-	private SpellBoundPlugin running;
 	private Set<Entity> holograms = new HashSet<>();
 	
-	public SpellListener(SpellBoundPlugin running) {
-		this.running = running;
+	public SpellListener() {
 	}
 	
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onClick(PlayerAnimationEvent e) {
 		
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 		SpellBoundPlayer sbp = sbph.getSpellBoundPlayer(e.getPlayer());
 		
 		ItemStack it = sbp.getBukkitPlayer().getItemInHand();
@@ -91,7 +89,7 @@ public class SpellListener implements Listener {
 			if (sp.isShiftClick() && !sbp.getBukkitPlayer().isSneaking()) {
 				return;
 			}
-			Hologram hologram = HologramAPI.createHologram(sbp.getBukkitPlayer().getEyeLocation().add(0, 1, 0), sp.getDisplayName().applyColour() + " " + sp.getPowerColor() + sp.getPower() + "p");
+			Hologram hologram = HologramAPI.createHologram(sbp.getBukkitPlayer().getEyeLocation().add(0, 1, 0), sp.getDisplayName() + " " + sp.getPowerColor() + sp.getPower() + "p");
 			hologram.spawn();
 			holograms.add(hologram.getAttachedTo());
 			new BukkitRunnable() {
@@ -102,14 +100,14 @@ public class SpellListener implements Listener {
 					hologram.despawn();
 					holograms.remove(hologram.getAttachedTo());
 				}
-			}.runTaskLater(running.getSelf(), 5L);
+			}.runTaskLater(Main.self, 5L);
 		}
 	}
 	
 	@EventHandler(priority = EventPriority.LOW)
 	public void onSlotChangeSpellDisplay(PlayerItemHeldEvent e) {
 		
-		SpellBoundPlayer sbp = running.getSpellBoundPlayerHandler().getSpellBoundPlayer(e.getPlayer());
+		SpellBoundPlayer sbp = Main.self.getSpellBoundPlayerHandler().getSpellBoundPlayer(e.getPlayer());
 		
 		if (!sbp.isBattleMode()) {
 			return;
@@ -127,15 +125,15 @@ public class SpellListener implements Listener {
 			return;
 		}
 		
-		String spTs = sp.getDisplayName().applyColour();
+		String spTs = sp.getDisplayName();
 		
-		ChatHandler.sendActionBar(spTs, sbp.getBukkitPlayer());
+		PacketUtil.sendActionbar(spTs, sbp.getBukkitPlayer());
 	}
 	
 	@EventHandler(priority = EventPriority.HIGH)
 	public void onSlotChangeWandSwitch(PlayerItemHeldEvent e) {
 		
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 		SpellBoundPlayer sbp = sbph.getSpellBoundPlayer(e.getPlayer());
 		
 		int slot = e.getNewSlot();
@@ -154,7 +152,7 @@ public class SpellListener implements Listener {
 			return;
 		}
 		
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 		SpellBoundPlayer sbp = sbph.getSpellBoundPlayer(e.getPlayer());
 		
 		if (sbp.isBattleMode()) {
@@ -181,7 +179,7 @@ public class SpellListener implements Listener {
 							}
 						}
 					}
-				}.runTaskLater(running.getSelf(), 1L);
+				}.runTaskLater(Main.self, 1L);
 			}else {
 				sbp.setSlotInside(-1);
 			}
@@ -205,7 +203,7 @@ public class SpellListener implements Listener {
 	@EventHandler(priority = EventPriority.NORMAL)
 	public void onUpdate(UpdateEvent e) {
 		
-		SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+		SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 		
 		for (SpellBoundPlayer sbp : sbph.getCachedPlayers()) {
 			sbp.regenerateMana();
@@ -216,7 +214,7 @@ public class SpellListener implements Listener {
 	public void onDamage(EntityDamageEvent e) {
 		if (e.getEntity() instanceof Player) {
 			
-			SpellBoundPlayerHandler sbph = running.getSpellBoundPlayerHandler();
+			SpellBoundPlayerHandler sbph = Main.self.getSpellBoundPlayerHandler();
 			
 			Player player = (Player) e.getEntity();
 			

@@ -1,22 +1,18 @@
 package jayms.spellbound.command;
 
 import org.bukkit.ChatColor;
-import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 
-import jayms.plugin.system.description.Version;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.common.Version;
+import jayms.java.mcpe.common.util.PlayerUtil;
 import jayms.spellbound.items.wands.Wand;
 import jayms.spellbound.player.SpellBoundPlayer;
 import jayms.spellbound.util.Permissions;
 
 public class SpellBoundGiveWandCommand extends AbstractSpellBoundCommand {
 	
-	public SpellBoundGiveWandCommand(SpellBoundPlugin running) {
-		super("givewand", running);
-		setAlias(new String[] {"gw"});
-		setDescription(new String[] {"SpellBound Give Wand Command."});
-		setFormat("[name]");
+	public SpellBoundGiveWandCommand() {
 	}
 
 	@Override
@@ -25,32 +21,67 @@ public class SpellBoundGiveWandCommand extends AbstractSpellBoundCommand {
 	}
 	
 	@Override
-	public boolean onCommand(CommandSender sender, org.bukkit.command.Command cmd, String label, String[] args) {
+	public void onCommand(Player sender, String[] args) {
 		
 		if (!sender.hasPermission(Permissions.SPELLBOUND_COMMAND_GIVEWAND)) {
-			sender.sendMessage(ChatColor.DARK_RED + "You don't have enough permissions!");
-			return true;
+			PlayerUtil.message(sender, ChatColor.DARK_RED + "You don't have enough permissions!");
+			return;
 		}
 		
 		SpellBoundPlayer sbp = extractSBP(sender);
 		
 		if (sbp == null) {
-			sender.sendMessage(ChatColor.DARK_RED + "You cannot run this command!");
-			return true;
+			PlayerUtil.message(sender, ChatColor.DARK_RED + "You cannot run this command!");
+			return;
 		}
 		
 		if (args.length != 1) {
-			sender.sendMessage(ChatColor.DARK_RED + "Not enough arguments!");
-			return false;
+			PlayerUtil.message(sender, ChatColor.DARK_RED + "Not enough arguments!");
+			return;
 		}
 		
 		Inventory inv = sbp.getBukkitPlayer().getInventory();
 		if (inv.firstEmpty() == -1) {
-			sender.sendMessage(ChatColor.DARK_RED + "Your inventory is full!");
-			return true;
+			PlayerUtil.message(sender, ChatColor.DARK_RED + "Your inventory is full!");
+			return;
 		}
 		
-		inv.addItem(new Wand(running, args[0]).getItemStack());
-		return true;
+		inv.addItem(new Wand(args[0]).getItemStack());
+	}
+
+	@Override
+	public String[] getAlias() {
+		return new String[] {
+				"gw"
+		};
+	}
+
+	@Override
+	public String[] getDescription() {
+		return new String[] {
+				"SpellBound Give Wand Command."
+		};
+	}
+
+	@Override
+	public String getFormat() {
+		return "[name]";
+	}
+
+	@Override
+	public String[] getHelp() {
+		return new String[] {
+				
+		};
+	}
+
+	@Override
+	public String getName() {
+		return "givewand";
+	}
+
+	@Override
+	public int requiredArgs() {
+		return 1;
 	}
 }

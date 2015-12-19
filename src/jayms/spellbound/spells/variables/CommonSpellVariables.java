@@ -1,4 +1,4 @@
-package jayms.spellbound.spells;
+package jayms.spellbound.spells.variables;
 
 public class CommonSpellVariables {
 	

@@ -5,10 +5,13 @@ import java.util.Set;
 import org.bukkit.ChatColor;
 import org.bukkit.event.Listener;
 
-import jayms.plugin.system.description.Version;
-import jayms.plugin.util.ColourableString;
-import jayms.plugin.util.CooldownHandler;
+import jayms.java.mcpe.common.CooldownHandler;
+import jayms.java.mcpe.common.Handler;
+import jayms.java.mcpe.common.Version;
+import jayms.java.mcpe.common.collect.Tuple;
 import jayms.spellbound.player.SpellBoundPlayer;
+import jayms.spellbound.spells.collision.CollisionPriority;
+import jayms.spellbound.spells.collision.CollisionResult;
 
 public interface Spell extends Listener, Comparable<Spell> {
 	
@@ -20,9 +23,9 @@ public interface Spell extends Listener, Comparable<Spell> {
 	
 	String getUniqueName();
 	
-	ColourableString getDisplayName();
+	String getDisplayName();
 	
-	ColourableString[] getDescription();
+	String[] getDescription();
 	
 	Version getVersion();
 	
@@ -45,4 +48,10 @@ public interface Spell extends Listener, Comparable<Spell> {
 	CooldownHandler<SpellBoundPlayer> getCooldowns();
 	
 	SpellType getType();
+	
+	CollisionPriority getPriority();
+	
+	double getCollisionRange();
+	
+	Handler<Tuple<SpellBoundPlayer, CollisionResult>> getCollisionHandler();
 }

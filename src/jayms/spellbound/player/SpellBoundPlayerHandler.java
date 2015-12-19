@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -17,9 +18,10 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
-import jayms.plugin.db.Database;
-import jayms.plugin.packet.TitleMethods;
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.java.mcpe.common.util.PacketUtil;
+import jayms.java.mcpe.common.util.ServerUtil;
+import jayms.java.mcpe.sql.Database;
+import jayms.spellbound.Main;
 import jayms.spellbound.items.wands.JihadStick;
 import jayms.spellbound.items.wands.Wand;
 
@@ -122,17 +124,16 @@ public class SpellBoundPlayerHandler implements Listener {
 	
 	public static final String SELECT_BINDS_STMT = "SELECT * FROM BINDS WHERE ID = %id%";
 
-	private final SpellBoundPlugin sbPlugin;
 	private Database db;
 
 	private Map<UUID, SpellBoundPlayer> cache = new HashMap<>();
 	
 	private Map<SpellBoundPlayer, ItemStack[]> battleModeToggle = new HashMap<>(); 
 	
-	public SpellBoundPlayerHandler(SpellBoundPlugin sbPlugin) {
-		this.sbPlugin = sbPlugin;
-		this.db = this.sbPlugin.getDatabase();
+	public SpellBoundPlayerHandler() {
+		this.db = Main.self.getSQL();
 		initialize();
+		Main.self.getEventDispatcher().registerListener(this);
 	}
 
 	private void initialize() {
@@ -172,13 +173,13 @@ public class SpellBoundPlayerHandler implements Listener {
 			throw new IllegalArgumentException("This UUID already exists in the database!");
 		}
 
-		Player player = sbPlugin.getSelf().getServer().getPlayer(uuid);
+		Player player = ServerUtil.getServer().getPlayer(uuid);
 
 		if (player == null) {
 			throw new IllegalArgumentException("This UUID isn't even a player!");
 		}
 
-		SpellBoundPlayer result = new SpellBoundPlayer(sbPlugin, player);
+		SpellBoundPlayer result = new SpellBoundPlayer(player);
 		result.save();
 
 		return result;
@@ -191,13 +192,13 @@ public class SpellBoundPlayerHandler implements Listener {
 		if (sbp == null) {
 			if (spellBoundPlayerExistsInDB(uuid)) {
 
-				Player player = sbPlugin.getSelf().getServer().getPlayer(uuid);
+				Player player = ServerUtil.getServer().getPlayer(uuid);
 
 				if (player == null) {
 					throw new IllegalArgumentException("This UUID isn't even a player!");
 				}
 
-				sbp = new SpellBoundPlayer(sbPlugin, player);
+				sbp = new SpellBoundPlayer(player);
 				sbp.load();
 				cache.put(sbp.getBukkitPlayer().getUniqueId(), sbp);
 			} else {
@@ -210,7 +211,7 @@ public class SpellBoundPlayerHandler implements Listener {
 
 	public SpellBoundPlayer getSpellBoundPlayer(String name) {
 
-		Player player = sbPlugin.getSelf().getServer().getPlayer(name);
+		Player player = ServerUtil.getServer().getPlayer(name);
 
 		if (player == null) {
 			throw new IllegalArgumentException("This name doesn't correspond to a player!");
@@ -254,8 +255,8 @@ public class SpellBoundPlayerHandler implements Listener {
 	}
 	
 	private void handleWelcome(SpellBoundPlayer sbp) {
-		TitleMethods.sendTitle("&7Welcome to &4S&cp&4e&cl&4l&cb&4o&cu&4n&cd ", 2, 5, 2, sbp.getBukkitPlayer());
-		TitleMethods.sendSubTitle("&7Powered by: &4PluginEnterprise", 2, 5, 2, sbp.getBukkitPlayer());
+		PacketUtil.sendTitle(ChatColor.translateAlternateColorCodes('&', "&7Welcome to &4S&cp&4e&cl&4l&cb&4o&cu&4n&cd"), 2, 5, 2, sbp.getBukkitPlayer());
+		PacketUtil.sendSubTitle(ChatColor.translateAlternateColorCodes('&', "&7Powered by: &4PluginEnterprise"), 2, 5, 2, sbp.getBukkitPlayer());
 	}
 
 	@EventHandler(priority = EventPriority.NORMAL)
@@ -263,7 +264,7 @@ public class SpellBoundPlayerHandler implements Listener {
 		SpellBoundPlayer sbp = getSpellBoundPlayer(e.getPlayer());
 		handleWelcome(sbp);
 		sbp.getScoreboard().updateAndShow();
-		JihadStick jihadStick = new JihadStick(sbPlugin);
+		JihadStick jihadStick = new JihadStick();
 		sbp.getBukkitPlayer().getInventory().setItemInHand(jihadStick.getItemStack());
 	}
 

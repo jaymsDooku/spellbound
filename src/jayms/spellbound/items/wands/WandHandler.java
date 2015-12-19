@@ -12,21 +12,19 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-import jayms.spellbound.SpellBoundPlugin;
+import jayms.spellbound.Main;
 import jayms.spellbound.player.SpellBoundPlayer;
 
 public class WandHandler implements Listener {
-
-	private final SpellBoundPlugin running;
 	
 	private Set<Wand> registeredWands = new HashSet<>();
 	
-	public WandHandler(SpellBoundPlugin running) {
-		this.running = running;
+	public WandHandler() {
+		Main.self.getEventDispatcher().registerListener(this);
 	}
 	
 	public void initialize() {
-		for (SpellBoundPlayer sbp : running.getSpellBoundPlayerHandler().getCachedPlayers()) {
+		for (SpellBoundPlayer sbp : Main.self.getSpellBoundPlayerHandler().getCachedPlayers()) {
 			registerPlayersWands(sbp);
 		}
 	}
@@ -59,7 +57,7 @@ public class WandHandler implements Listener {
 		for (ItemStack it : inv) {
 			if (it == null) continue;
 			if (Wand.isWand(it)) {
-				registerWand(new Wand(running, it));
+				registerWand(new Wand(it));
 			}
 		}
 	}
@@ -73,13 +71,13 @@ public class WandHandler implements Listener {
 	
 	@EventHandler(priority = EventPriority.LOW)
 	public void onPlayerJoin(PlayerJoinEvent e) {
-		SpellBoundPlayer sbp = running.getSpellBoundPlayerHandler().getSpellBoundPlayer(e.getPlayer());
+		SpellBoundPlayer sbp = Main.self.getSpellBoundPlayerHandler().getSpellBoundPlayer(e.getPlayer());
 		registerPlayersWands(sbp);
 	}
 	
 	@EventHandler(priority = EventPriority.LOW)
 	public void onPlayerQuit(PlayerQuitEvent e) {
-		SpellBoundPlayer sbp = running.getSpellBoundPlayerHandler().getSpellBoundPlayer(e.getPlayer());
+		SpellBoundPlayer sbp = Main.self.getSpellBoundPlayerHandler().getSpellBoundPlayer(e.getPlayer());
 		unregisterPlayersWands(sbp);
 	}
 	
